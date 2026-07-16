@@ -1,0 +1,136 @@
+import { useState } from "react";
+import { vehicleService } from "../services/vehicleService";
+import { Button, Input } from "./ui";
+import type { SaveVehicleRequest, Vehicle } from "../types";
+
+interface Props {
+  initial?: Vehicle | null;
+  onClose: () => void;
+  onSaved: (vehicleId: number) => void;
+}
+
+// Formular de adaugare/editare masina, afisat ca modal.
+export default function VehicleForm({ initial, onClose, onSaved }: Props) {
+  const isEdit = !!initial;
+  const [form, setForm] = useState<SaveVehicleRequest>({
+    vin: initial?.vin ?? "",
+    make: initial?.make ?? "",
+    model: initial?.model ?? "",
+    year: initial?.year ?? new Date().getFullYear(),
+    km: initial?.km ?? 0,
+    purchasePrice: initial?.purchasePrice ?? 0,
+    acquisitionSource: initial?.acquisitionSource ?? "",
+    description: initial?.description ?? "",
+  });
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const set = (field: keyof SaveVehicleRequest, value: string | number) =>
+    setForm((f) => ({ ...f, [field]: value }));
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setSaving(true);
+    try {
+      const payload: SaveVehicleRequest = {
+        ...form,
+        vin: form.vin || null,
+        acquisitionSource: form.acquisitionSource || null,
+        description: form.description || null,
+      };
+      if (isEdit) {
+        await vehicleService.update(initial!.vehicleId, payload);
+        onSaved(initial!.vehicleId);
+      } else {
+        const id = await vehicleService.create(payload);
+        onSaved(id);
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message ?? "Salvarea a eșuat.");
+      setSaving(false);
+    }
+  };
+
+  const label = "mb-1 block text-sm font-medium text-ink-secondary";
+  const textareaClass =
+    "w-full rounded-md border border-border bg-surface-alt px-3 py-2 text-sm text-ink placeholder:text-ink-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={onClose}>
+      <div
+        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-border bg-surface p-6 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-bold text-ink">
+            {isEdit ? "Editează mașina" : "Adaugă mașină în stoc"}
+          </h2>
+          <button onClick={onClose} className="text-ink-muted hover:text-ink">✕</button>
+        </div>
+
+        {error && (
+          <div className="mb-4 rounded-md bg-critical/15 px-4 py-3 text-sm text-critical">{error}</div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={label}>Marcă *</label>
+              <Input required value={form.make} onChange={(e) => set("make", e.target.value)}
+                placeholder="Volkswagen" />
+            </div>
+            <div>
+              <label className={label}>Model *</label>
+              <Input required value={form.model} onChange={(e) => set("model", e.target.value)}
+                placeholder="Golf 7" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={label}>An fabricație *</label>
+              <Input type="number" required min={1950} max={2100} value={form.year}
+                onChange={(e) => set("year", Number(e.target.value))} />
+            </div>
+            <div>
+              <label className={label}>Kilometraj</label>
+              <Input type="number" min={0} value={form.km}
+                onChange={(e) => set("km", Number(e.target.value))} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={label}>Preț achiziție (€) *</label>
+              <Input type="number" required min={0} step="0.01" value={form.purchasePrice}
+                onChange={(e) => set("purchasePrice", Number(e.target.value))} />
+            </div>
+            <div>
+              <label className={label}>VIN</label>
+              <Input value={form.vin ?? ""} onChange={(e) => set("vin", e.target.value)}
+                placeholder="WVWZZZ..." maxLength={20} />
+            </div>
+          </div>
+          <div>
+            <label className={label}>Sursă achiziție</label>
+            <Input value={form.acquisitionSource ?? ""} onChange={(e) => set("acquisitionSource", e.target.value)}
+              placeholder="Licitație B2B, persoană fizică, buy-back..." />
+          </div>
+          <div>
+            <label className={label}>Descriere</label>
+            <textarea rows={3} value={form.description ?? ""} onChange={(e) => set("description", e.target.value)}
+              className={textareaClass} placeholder="Dotări, stare, observații..." />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button type="button" variant="secondary" onClick={onClose}>
+              Anulează
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? "Se salvează..." : isEdit ? "Salvează" : "Adaugă mașina"}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
