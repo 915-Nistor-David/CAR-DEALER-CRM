@@ -39,10 +39,11 @@ public class SaleListDto
     public int SaleId { get; set; }
     public int VehicleId { get; set; }
     public string VehicleName { get; set; } = string.Empty;
-    public decimal PurchasePrice { get; set; }
+    // null pentru non-Owner — confidentiale (profitul ar deconspira pretul de achizitie)
+    public decimal? PurchasePrice { get; set; }
     public decimal TotalCosts { get; set; }
     public decimal SalePrice { get; set; }
-    public decimal Profit { get; set; }
+    public decimal? Profit { get; set; }
     public DateOnly SaleDate { get; set; }
     public string Type { get; set; } = string.Empty;
     public string? FinancingPartner { get; set; }

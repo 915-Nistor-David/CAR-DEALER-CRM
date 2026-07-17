@@ -1,23 +1,34 @@
 @import "tailwindcss";
 
 @theme {
-  --color-page: #0a0f1c;
-  --color-surface: #111a2e;
-  --color-surface-alt: #17213a;
-  --color-surface-hover: #1c2740;
-  --color-border: #263354;
-  --color-ink: #f1f5f9;
-  --color-ink-secondary: #a8b3c7;
-  --color-ink-muted: #6b7690;
-  --color-accent: #3987e5;
-  --color-accent-hover: #2a78d6;
-  --color-good: #0ca30c;
-  --color-warning: #fab219;
-  --color-critical: #d03b3b;
+  --color-page: #0b0910;
+  --color-surface: #141019;
+  --color-surface-alt: #1b1523;
+  --color-surface-hover: #241c30;
+  --color-border: #2c2338;
+  --color-ink: #f4f2f8;
+  --color-ink-secondary: #a9a1bb;
+  --color-ink-muted: #6f6785;
+  --color-accent: #7c5aff;
+  --color-accent-hover: #8f70ff;
+  --color-good: #2fbf71;
+  --color-warning: #f2b31b;
+  --color-critical: #e25555;
 }
 
 body {
-  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-family: Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
   background-color: var(--color-page);
+  background-image: radial-gradient(
+    1100px 480px at 50% -120px,
+    rgba(124, 90, 255, 0.16),
+    transparent 70%
+  );
+  background-repeat: no-repeat;
   color: var(--color-ink);
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: rgba(124, 90, 255, 0.4);
 }

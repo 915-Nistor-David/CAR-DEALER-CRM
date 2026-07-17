@@ -8,6 +8,9 @@ import Board from "./pages/Board";
 import Vehicles from "./pages/Vehicles";
 import VehicleDetail from "./pages/VehicleDetail";
 import Sales from "./pages/Sales";
+import Users from "./pages/Users";
+import Stages from "./pages/Stages";
+import Activity from "./pages/Activity";
 
 export default function App() {
   return (
@@ -21,7 +24,18 @@ export default function App() {
           <Route path="/board" element={<Board />} />
           <Route path="/vehicles" element={<Vehicles />} />
           <Route path="/vehicles/:id" element={<VehicleDetail />} />
-          <Route path="/sales" element={<Sales />} />
+          <Route path="/sales" element={
+            <ProtectedRoute requiredRole={["Owner", "Vanzari"]}><Sales /></ProtectedRoute>
+          } />
+          <Route path="/utilizatori" element={
+            <ProtectedRoute requiredRole={["Owner"]}><Users /></ProtectedRoute>
+          } />
+          <Route path="/etape" element={
+            <ProtectedRoute requiredRole={["Owner"]}><Stages /></ProtectedRoute>
+          } />
+          <Route path="/activitate" element={
+            <ProtectedRoute requiredRole={["Owner"]}><Activity /></ProtectedRoute>
+          } />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

@@ -14,10 +14,20 @@ namespace CarFlow.API.Controllers;
 [Route("api/auth")]
 public class AuthController : ControllerBase
 {
-    private static readonly string[] DefaultStages =
+    // Nume etapa, rolul notificat la intrarea masinii in etapa, marcaj "gata de vanzare"
+    private static readonly (string Name, string? NotifyRole, bool IsSaleReady)[] DefaultStages =
     {
-        "Cumpărată", "Transport", "Service", "Inspecție", "Detailing",
-        "Listată", "Gata de vânzare", "Vânzare în curs", "Vândută", "Livrată"
+        ("Cumpărată", null, false),
+        ("Transport", "Junior", false),
+        ("Mecanică", "Junior", false),
+        ("Vopsitorie", "Junior", false),
+        ("Climă", "Junior", false),
+        ("Detailing", "Junior", false),
+        ("Listată", "Vanzari", false),
+        ("Gata de vânzare", "Vanzari", true),
+        ("Vânzare în curs", "Vanzari", false),
+        ("Vândută", null, false),
+        ("Livrată", null, false)
     };
 
     private readonly AppDbContext _db;
@@ -55,8 +65,10 @@ public class AuthController : ControllerBase
             _db.PipelineStages.Add(new PipelineStage
             {
                 DealershipId = dealership.DealershipId,
-                Name = DefaultStages[i],
-                SortOrder = i + 1
+                Name = DefaultStages[i].Name,
+                SortOrder = i + 1,
+                NotifyRole = DefaultStages[i].NotifyRole,
+                IsSaleReady = DefaultStages[i].IsSaleReady
             });
         }
 
@@ -73,6 +85,9 @@ public class AuthController : ControllerBase
 
         if (user == null || !BCrypt.Net.BCrypt.Verify(req.Password, user.PasswordHash))
             return Unauthorized(new { message = "Email sau parolă incorectă." });
+
+        if (!user.IsActive)
+            return Unauthorized(new { message = "Contul este dezactivat. Contactează administratorul." });
 
         return Ok(BuildAuthResponse(user, user.Dealership?.Name ?? ""));
     }

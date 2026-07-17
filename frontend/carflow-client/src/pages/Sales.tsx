@@ -1,13 +1,17 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { saleService } from "../services/saleService";
+import { authService } from "../services/authService";
 import { formatDate, formatMoney } from "../utils/format";
 import { Badge } from "../components/ui";
+import { CheckIcon, TagIcon } from "../components/icons";
 import type { SaleListItem } from "../types";
 
 export default function Sales() {
   const [sales, setSales] = useState<SaleListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  // Vanzatorii vad lista, dar pretul de achizitie si profitul sunt doar ale Ownerului
+  const isOwner = authService.isOwner();
 
   const load = async () => {
     try {
@@ -33,7 +37,7 @@ export default function Sales() {
     }
   };
 
-  const totalProfit = sales.reduce((sum, s) => sum + s.profit, 0);
+  const totalProfit = sales.reduce((sum, s) => sum + (s.profit ?? 0), 0);
 
   if (loading) return <p className="text-ink-secondary">Se încarcă vânzările...</p>;
 
@@ -44,7 +48,7 @@ export default function Sales() {
           <h1 className="text-2xl font-bold text-ink">Vânzări</h1>
           <p className="text-sm text-ink-secondary">{sales.length} mașini vândute</p>
         </div>
-        {sales.length > 0 && (
+        {sales.length > 0 && isOwner && (
           <div className="rounded-lg border border-border bg-surface px-4 py-2 shadow-sm">
             <span className="text-sm text-ink-secondary">Profit total: </span>
             <span className={`text-sm font-bold ${totalProfit >= 0 ? "text-good" : "text-critical"}`}>
@@ -55,15 +59,17 @@ export default function Sales() {
       </div>
 
       {sales.length === 0 ? (
-        <div className="rounded-xl border border-border bg-surface p-10 text-center shadow-sm">
-          <div className="text-4xl">💰</div>
+        <div className="rounded-2xl border border-border bg-surface p-10 text-center shadow-sm">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-good/15 text-good">
+            <TagIcon size={26} />
+          </div>
           <p className="mt-2 text-ink-secondary">Nicio vânzare înregistrată încă.</p>
           <p className="text-sm text-ink-muted">
             Deschide o mașină din stoc și apasă „Marchează ca vândută".
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-border bg-surface shadow-sm">
+        <div className="overflow-x-auto rounded-2xl border border-border bg-surface shadow-sm">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-border bg-surface-alt text-xs uppercase text-ink-muted">
               <tr>
@@ -71,16 +77,16 @@ export default function Sales() {
                 <th className="px-4 py-3">Dată</th>
                 <th className="px-4 py-3">Cumpărător</th>
                 <th className="px-4 py-3">Tip</th>
-                <th className="px-4 py-3">Achiziție</th>
+                {isOwner && <th className="px-4 py-3">Achiziție</th>}
                 <th className="px-4 py-3">Costuri</th>
                 <th className="px-4 py-3">Preț vânzare</th>
-                <th className="px-4 py-3">Profit</th>
+                {isOwner && <th className="px-4 py-3">Profit</th>}
                 <th className="px-4 py-3">Checklist</th>
               </tr>
             </thead>
             <tbody>
               {sales.map((s) => (
-                <tr key={s.saleId} className="border-b border-border last:border-0">
+                <tr key={s.saleId} className="border-b border-border/60 transition-colors last:border-0 hover:bg-surface-alt/50">
                   <td className="px-4 py-3">
                     <Link to={`/vehicles/${s.vehicleId}`} className="font-medium text-accent hover:underline">
                       {s.vehicleName}
@@ -100,29 +106,35 @@ export default function Sales() {
                       <Badge tone="good">Cash</Badge>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-ink-secondary">{formatMoney(s.purchasePrice)}</td>
+                  {isOwner && (
+                    <td className="px-4 py-3 text-ink-secondary">{formatMoney(s.purchasePrice ?? 0)}</td>
+                  )}
                   <td className="px-4 py-3 text-ink-secondary">{formatMoney(s.totalCosts)}</td>
                   <td className="px-4 py-3 font-medium text-ink">{formatMoney(s.salePrice)}</td>
-                  <td className={`px-4 py-3 font-bold ${s.profit >= 0 ? "text-good" : "text-critical"}`}>
-                    {formatMoney(s.profit)}
-                  </td>
+                  {isOwner && (
+                    <td className="px-4 py-3">
+                      <Badge tone={(s.profit ?? 0) >= 0 ? "good" : "critical"} className="text-xs font-bold">
+                        {(s.profit ?? 0) >= 0 ? "+" : ""}{formatMoney(s.profit ?? 0)}
+                      </Badge>
+                    </td>
+                  )}
                   <td className="px-4 py-3">
-                    <div className="flex flex-col gap-1 text-xs text-ink-secondary">
-                      <label className="flex cursor-pointer items-center gap-1.5">
-                        <input type="checkbox" checked={s.docsHandedOver}
-                          onChange={() => toggleChecklist(s, "docsHandedOver")} />
-                        Acte predate
-                      </label>
-                      <label className="flex cursor-pointer items-center gap-1.5">
-                        <input type="checkbox" checked={s.platesDone}
-                          onChange={() => toggleChecklist(s, "platesDone")} />
-                        Plăcuțe
-                      </label>
-                      <label className="flex cursor-pointer items-center gap-1.5">
-                        <input type="checkbox" checked={s.warrantyGiven}
-                          onChange={() => toggleChecklist(s, "warrantyGiven")} />
-                        Garanție
-                      </label>
+                    <div className="flex flex-wrap gap-1.5">
+                      <ChecklistPill
+                        label="Acte"
+                        done={s.docsHandedOver}
+                        onToggle={() => toggleChecklist(s, "docsHandedOver")}
+                      />
+                      <ChecklistPill
+                        label="Plăcuțe"
+                        done={s.platesDone}
+                        onToggle={() => toggleChecklist(s, "platesDone")}
+                      />
+                      <ChecklistPill
+                        label="Garanție"
+                        done={s.warrantyGiven}
+                        onToggle={() => toggleChecklist(s, "warrantyGiven")}
+                      />
                     </div>
                   </td>
                 </tr>
@@ -132,5 +144,21 @@ export default function Sales() {
         </div>
       )}
     </div>
+  );
+}
+
+function ChecklistPill({ label, done, onToggle }: { label: string; done: boolean; onToggle: () => void }) {
+  return (
+    <button
+      onClick={onToggle}
+      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors ${
+        done
+          ? "border-accent/40 bg-accent/15 text-accent-hover"
+          : "border-border text-ink-muted hover:border-ink-muted hover:text-ink-secondary"
+      }`}
+    >
+      {done && <CheckIcon size={11} />}
+      {label}
+    </button>
   );
 }

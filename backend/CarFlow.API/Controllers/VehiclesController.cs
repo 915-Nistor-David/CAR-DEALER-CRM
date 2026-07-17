@@ -1,5 +1,6 @@
 using CarFlow.API.Common;
 using CarFlow.API.Data;
+using CarFlow.API.Documents;
 using CarFlow.API.Models;
 using CarFlow.API.Vehicles;
 using Microsoft.AspNetCore.Authorization;
@@ -16,17 +17,23 @@ public class VehiclesController : ControllerBase
     private readonly AppDbContext _db;
     private readonly ITenantProvider _tenant;
     private readonly IFileStorage _storage;
+    private readonly INotificationService _notifications;
 
-    public VehiclesController(AppDbContext db, ITenantProvider tenant, IFileStorage storage)
+    public VehiclesController(AppDbContext db, ITenantProvider tenant, IFileStorage storage,
+        INotificationService notifications)
     {
         _db = db;
         _tenant = tenant;
         _storage = storage;
+        _notifications = notifications;
     }
 
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
+        // Pretul de achizitie e confidential — doar Ownerul il vede.
+        var isOwner = User.IsInRole("Owner");
+
         var vehicles = await _db.Vehicles
             .OrderByDescending(v => v.CreatedAt)
             .Select(v => new VehicleDto
@@ -37,7 +44,8 @@ public class VehiclesController : ControllerBase
                 Model = v.Model,
                 Year = v.Year,
                 Km = v.Km,
-                PurchasePrice = v.PurchasePrice,
+                PurchasePrice = isOwner ? v.PurchasePrice : (decimal?)null,
+                RARDate = v.RARDate,
                 AcquisitionSource = v.AcquisitionSource,
                 Description = v.Description,
                 CurrentStageId = v.CurrentStageId,
@@ -62,6 +70,8 @@ public class VehiclesController : ControllerBase
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)
     {
+        var isOwner = User.IsInRole("Owner");
+
         var v = await _db.Vehicles
             .Include(x => x.CurrentStage)
             .Include(x => x.Photos)
@@ -88,6 +98,19 @@ public class VehiclesController : ControllerBase
             })
             .ToListAsync();
 
+        var documents = await _db.VehicleDocuments
+            .Where(d => d.VehicleId == id)
+            .OrderBy(d => d.IsDone).ThenBy(d => d.DueDate).ThenBy(d => d.DocumentId)
+            .Select(d => new DocumentDto
+            {
+                DocumentId = d.DocumentId,
+                Name = d.Name,
+                IsDone = d.IsDone,
+                DueDate = d.DueDate,
+                CreatedAt = d.CreatedAt
+            })
+            .ToListAsync();
+
         var totalCosts = v.Costs.Sum(c => c.Amount);
         var enteredStageAt = await _db.VehicleStatusHistory
             .Where(h => h.VehicleId == id && h.ToStageId == v.CurrentStageId)
@@ -101,7 +124,8 @@ public class VehiclesController : ControllerBase
             Model = v.Model,
             Year = v.Year,
             Km = v.Km,
-            PurchasePrice = v.PurchasePrice,
+            PurchasePrice = isOwner ? v.PurchasePrice : null,
+            RARDate = v.RARDate,
             AcquisitionSource = v.AcquisitionSource,
             Description = v.Description,
             CurrentStageId = v.CurrentStageId,
@@ -131,6 +155,7 @@ public class VehiclesController : ControllerBase
                     Description = c.Description
                 }).ToList(),
             History = history,
+            Documents = documents,
             Sale = v.Sale == null ? null : new SaleInfoDto
             {
                 SaleId = v.Sale.SaleId,
@@ -145,13 +170,14 @@ public class VehiclesController : ControllerBase
                 PlatesDone = v.Sale.PlatesDone,
                 WarrantyGiven = v.Sale.WarrantyGiven
             },
-            Profit = v.Sale == null ? null : v.Sale.SalePrice - v.PurchasePrice - totalCosts
+            Profit = !isOwner || v.Sale == null ? null : v.Sale.SalePrice - v.PurchasePrice - totalCosts
         };
 
         return Ok(dto);
     }
 
     [HttpPost]
+    [Authorize(Roles = "Owner,Vanzari")]
     public async Task<IActionResult> Create(SaveVehicleRequest req)
     {
         var firstStage = await _db.PipelineStages.OrderBy(s => s.SortOrder).FirstOrDefaultAsync();
@@ -168,6 +194,7 @@ public class VehiclesController : ControllerBase
             PurchasePrice = req.PurchasePrice,
             AcquisitionSource = req.AcquisitionSource,
             Description = req.Description,
+            RARDate = req.RARDate,
             CurrentStageId = firstStage.StageId
         };
         _db.Vehicles.Add(vehicle);
@@ -187,6 +214,7 @@ public class VehiclesController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = "Owner,Vanzari")]
     public async Task<IActionResult> Update(int id, SaveVehicleRequest req)
     {
         var vehicle = await _db.Vehicles.FirstOrDefaultAsync(v => v.VehicleId == id);
@@ -197,15 +225,23 @@ public class VehiclesController : ControllerBase
         vehicle.Model = req.Model;
         vehicle.Year = req.Year;
         vehicle.Km = req.Km;
-        vehicle.PurchasePrice = req.PurchasePrice;
+        // Non-Owner nu vede pretul de achizitie, deci nici nu-l poate suprascrie
+        if (User.IsInRole("Owner"))
+            vehicle.PurchasePrice = req.PurchasePrice;
         vehicle.AcquisitionSource = req.AcquisitionSource;
         vehicle.Description = req.Description;
+
+        // Daca data RAR se schimba, reminderul trimis nu mai e valabil — se va retrimite
+        if (vehicle.RARDate != req.RARDate)
+            vehicle.RARReminderSentFor = null;
+        vehicle.RARDate = req.RARDate;
 
         await _db.SaveChangesAsync();
         return Ok(new { message = "Mașina a fost actualizată." });
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = "Owner")]
     public async Task<IActionResult> Delete(int id)
     {
         var vehicle = await _db.Vehicles
@@ -225,15 +261,16 @@ public class VehiclesController : ControllerBase
         return Ok(new { message = "Mașina a fost ștearsă." });
     }
 
-    // Mutarea intr-o alta etapa — scrie intotdeauna o intrare in istoric.
+    // Mutarea intr-o alta etapa — scrie intotdeauna o intrare in istoric
+    // si notifica Ownerul + rolul asociat etapei destinatie (toate rolurile pot muta).
     [HttpPut("{id}/stage")]
     public async Task<IActionResult> ChangeStage(int id, ChangeStageRequest req)
     {
         var vehicle = await _db.Vehicles.FirstOrDefaultAsync(v => v.VehicleId == id);
         if (vehicle == null) return NotFound();
 
-        var stageExists = await _db.PipelineStages.AnyAsync(s => s.StageId == req.StageId);
-        if (!stageExists)
+        var stage = await _db.PipelineStages.FirstOrDefaultAsync(s => s.StageId == req.StageId);
+        if (stage == null)
             return BadRequest(new { message = "Etapa nu există." });
 
         if (vehicle.CurrentStageId == req.StageId)
@@ -248,8 +285,27 @@ public class VehiclesController : ControllerBase
             Note = req.Note
         });
         vehicle.CurrentStageId = req.StageId;
+        vehicle.StuckReminderSentAt = null;
 
         await _db.SaveChangesAsync();
+
+        var moverName = await _db.Users
+            .Where(u => u.UserId == _tenant.UserId)
+            .Select(u => u.Name)
+            .FirstOrDefaultAsync() ?? "Cineva";
+
+        var roles = new List<string> { "Owner" };
+        if (!string.IsNullOrEmpty(stage.NotifyRole))
+            roles.Add(stage.NotifyRole);
+
+        var message = $"{moverName} a mutat {vehicle.Make} {vehicle.Model} ({vehicle.Year}) în etapa „{stage.Name}”.";
+        if (!string.IsNullOrWhiteSpace(req.Note))
+            message += $" Mesaj: „{req.Note}”";
+
+        await _notifications.NotifyRolesAsync(_tenant.DealershipId, roles, "StageMove",
+            $"{vehicle.Make} {vehicle.Model} → {stage.Name}", message,
+            $"/vehicles/{vehicle.VehicleId}", excludeUserId: _tenant.UserId);
+
         return Ok(new { message = "Etapa a fost schimbată." });
     }
 }

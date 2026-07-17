@@ -23,6 +23,7 @@ public class SalesController : ControllerBase
 
     // Inregistreaza vanzarea si muta masina in etapa "Vândută" (daca exista).
     [HttpPost("api/vehicles/{vehicleId}/sale")]
+    [Authorize(Roles = "Owner,Vanzari")]
     public async Task<IActionResult> Create(int vehicleId, CreateSaleRequest req)
     {
         if (req.Type != "Cash" && req.Type != "Finantat")
@@ -69,8 +70,11 @@ public class SalesController : ControllerBase
     }
 
     [HttpGet("api/sales")]
+    [Authorize(Roles = "Owner,Vanzari")]
     public async Task<IActionResult> GetAll()
     {
+        var isOwner = User.IsInRole("Owner");
+
         var sales = await _db.Sales
             .OrderByDescending(s => s.SaleDate)
             .ThenByDescending(s => s.SaleId)
@@ -98,12 +102,23 @@ public class SalesController : ControllerBase
             .ToListAsync();
 
         foreach (var s in sales)
-            s.Profit = s.SalePrice - s.PurchasePrice - s.TotalCosts;
+        {
+            if (isOwner)
+            {
+                s.Profit = s.SalePrice - s.PurchasePrice - s.TotalCosts;
+            }
+            else
+            {
+                s.PurchasePrice = null;
+                s.Profit = null;
+            }
+        }
 
         return Ok(sales);
     }
 
     [HttpPut("api/sales/{id}/checklist")]
+    [Authorize(Roles = "Owner,Vanzari")]
     public async Task<IActionResult> UpdateChecklist(int id, UpdateChecklistRequest req)
     {
         var sale = await _db.Sales.FirstOrDefaultAsync(s => s.SaleId == id);

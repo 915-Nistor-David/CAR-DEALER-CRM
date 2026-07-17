@@ -17,6 +17,16 @@ public class Vehicle : ITenantEntity
     public string? Description { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    // Programare RAR (modificabila oricand)
+    public DateOnly? RARDate { get; set; }
+    // Deduplicare remindere: data RAR pentru care s-a trimis deja reminderul
+    // (daca RARDate se schimba, markerul nu mai corespunde si se retrimite)
+    public DateOnly? RARReminderSentFor { get; set; }
+    // Deduplicare "sta prea mult in etapa" — resetat la null la fiecare mutare
+    public DateTime? StuckReminderSentAt { get; set; }
+    // Deduplicare "prea veche in stoc"
+    public DateTime? StockAgingReminderSentAt { get; set; }
+
     public PipelineStage? CurrentStage { get; set; }
     public List<VehiclePhoto> Photos { get; set; } = new();
     public List<VehicleCost> Costs { get; set; } = new();

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { vehicleService } from "../services/vehicleService";
+import { authService } from "../services/authService";
 import { Button, Input } from "./ui";
 import type { SaveVehicleRequest, Vehicle } from "../types";
 
@@ -12,6 +13,9 @@ interface Props {
 // Formular de adaugare/editare masina, afisat ca modal.
 export default function VehicleForm({ initial, onClose, onSaved }: Props) {
   const isEdit = !!initial;
+  // Non-Owner nu vede pretul de achizitie — campul e ascuns, iar backend-ul
+  // ignora oricum valoarea la update-urile venite de la non-Owner.
+  const isOwner = authService.isOwner();
   const [form, setForm] = useState<SaveVehicleRequest>({
     vin: initial?.vin ?? "",
     make: initial?.make ?? "",
@@ -19,6 +23,7 @@ export default function VehicleForm({ initial, onClose, onSaved }: Props) {
     year: initial?.year ?? new Date().getFullYear(),
     km: initial?.km ?? 0,
     purchasePrice: initial?.purchasePrice ?? 0,
+    rarDate: initial?.rarDate ?? "",
     acquisitionSource: initial?.acquisitionSource ?? "",
     description: initial?.description ?? "",
   });
@@ -36,6 +41,7 @@ export default function VehicleForm({ initial, onClose, onSaved }: Props) {
       const payload: SaveVehicleRequest = {
         ...form,
         vin: form.vin || null,
+        rarDate: form.rarDate || null,
         acquisitionSource: form.acquisitionSource || null,
         description: form.description || null,
       };
@@ -57,9 +63,9 @@ export default function VehicleForm({ initial, onClose, onSaved }: Props) {
     "w-full rounded-md border border-border bg-surface-alt px-3 py-2 text-sm text-ink placeholder:text-ink-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-border bg-surface p-6 shadow-xl"
+        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-border bg-surface p-6 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
@@ -99,21 +105,30 @@ export default function VehicleForm({ initial, onClose, onSaved }: Props) {
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className={label}>Preț achiziție (€) *</label>
-              <Input type="number" required min={0} step="0.01" value={form.purchasePrice}
-                onChange={(e) => set("purchasePrice", Number(e.target.value))} />
-            </div>
-            <div>
+            {isOwner && (
+              <div>
+                <label className={label}>Preț achiziție (€) *</label>
+                <Input type="number" required min={0} step="0.01" value={form.purchasePrice}
+                  onChange={(e) => set("purchasePrice", Number(e.target.value))} />
+              </div>
+            )}
+            <div className={isOwner ? "" : "col-span-2"}>
               <label className={label}>VIN</label>
               <Input value={form.vin ?? ""} onChange={(e) => set("vin", e.target.value)}
                 placeholder="WVWZZZ..." maxLength={20} />
             </div>
           </div>
-          <div>
-            <label className={label}>Sursă achiziție</label>
-            <Input value={form.acquisitionSource ?? ""} onChange={(e) => set("acquisitionSource", e.target.value)}
-              placeholder="Licitație B2B, persoană fizică, buy-back..." />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={label}>Programare RAR</label>
+              <Input type="date" value={form.rarDate ?? ""}
+                onChange={(e) => set("rarDate", e.target.value)} />
+            </div>
+            <div>
+              <label className={label}>Sursă achiziție</label>
+              <Input value={form.acquisitionSource ?? ""} onChange={(e) => set("acquisitionSource", e.target.value)}
+                placeholder="Licitație B2B, persoană fizică..." />
+            </div>
           </div>
           <div>
             <label className={label}>Descriere</label>

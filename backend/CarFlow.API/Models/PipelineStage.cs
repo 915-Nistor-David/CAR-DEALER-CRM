@@ -8,4 +8,11 @@ public class PipelineStage : ITenantEntity
     public int DealershipId { get; set; }
     public string Name { get; set; } = string.Empty;
     public int SortOrder { get; set; }
+
+    // Prag "sta prea mult in etapa" (zile); null = se foloseste Dealership.DefaultStageAlertDays
+    public int? AlertDays { get; set; }
+    // Rolul notificat cand o masina INTRA in etapa (pe langa Owner): Vanzari | Junior
+    public string? NotifyRole { get; set; }
+    // Marcheaza etapa "gata de vanzare" — folosita ulterior pentru matching-ul clientilor interesati
+    public bool IsSaleReady { get; set; }
 }

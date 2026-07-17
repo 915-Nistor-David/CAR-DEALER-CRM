@@ -36,11 +36,17 @@ export default function Register() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-page px-4 py-8">
-      <div className="w-full max-w-md rounded-xl border border-border bg-surface p-8 shadow-lg">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-page px-4 py-8">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute left-1/2 top-1/2 h-[520px] w-[820px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent/15 blur-3xl"
+      />
+      <div className="relative w-full max-w-md rounded-2xl border border-border bg-surface p-8 shadow-[0_30px_80px_-20px_rgba(124,90,255,0.3)]">
         <div className="mb-6 text-center">
-          <div className="text-3xl">🚗</div>
-          <h1 className="mt-2 text-2xl font-bold text-ink">Creează-ți contul CarFlow</h1>
+          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#8b6bff] to-[#5b34d9] text-lg font-bold text-white">
+            C
+          </div>
+          <h1 className="mt-3 text-2xl font-bold text-ink">Creează-ți contul CarFlow</h1>
           <p className="mt-1 text-sm text-ink-secondary">
             Un cont nou creează un dealer nou — tu devii proprietarul lui.
           </p>

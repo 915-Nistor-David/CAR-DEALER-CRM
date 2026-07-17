@@ -27,6 +27,18 @@ export const authService = {
   isLoggedIn(): boolean {
     return !!localStorage.getItem("carflow_token");
   },
+
+  getRole(): string {
+    return this.getUser()?.role ?? "";
+  },
+
+  isOwner(): boolean {
+    return this.getRole() === "Owner";
+  },
+
+  hasRole(...roles: string[]): boolean {
+    return roles.includes(this.getRole());
+  },
 };
 
 function saveSession(user: AuthUser) {

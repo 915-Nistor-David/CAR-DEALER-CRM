@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using CarFlow.API.Documents;
 
 namespace CarFlow.API.Vehicles;
 
@@ -10,7 +11,9 @@ public class VehicleDto
     public string Model { get; set; } = string.Empty;
     public int Year { get; set; }
     public int Km { get; set; }
-    public decimal PurchasePrice { get; set; }
+    // null pentru non-Owner — pretul de achizitie e vizibil doar adminului
+    public decimal? PurchasePrice { get; set; }
+    public DateOnly? RARDate { get; set; }
     public string? AcquisitionSource { get; set; }
     public string? Description { get; set; }
     public int CurrentStageId { get; set; }
@@ -70,7 +73,9 @@ public class VehicleDetailDto : VehicleDto
     public List<PhotoDto> Photos { get; set; } = new();
     public List<CostDto> Costs { get; set; } = new();
     public List<HistoryEntryDto> History { get; set; } = new();
+    public List<DocumentDto> Documents { get; set; } = new();
     public SaleInfoDto? Sale { get; set; }
+    // null pentru non-Owner (profitul ar deconspira pretul de achizitie)
     public decimal? Profit { get; set; }
 }
 
@@ -99,6 +104,8 @@ public class SaveVehicleRequest
 
     [MaxLength(4000)]
     public string? Description { get; set; }
+
+    public DateOnly? RARDate { get; set; }
 }
 
 public class ChangeStageRequest
@@ -114,4 +121,30 @@ public class StageDto
     public int StageId { get; set; }
     public string Name { get; set; } = string.Empty;
     public int SortOrder { get; set; }
+    public int? AlertDays { get; set; }
+    public string? NotifyRole { get; set; }
+    public bool IsSaleReady { get; set; }
+    // Cate masini sunt acum in aceasta etapa (pentru pagina de administrare)
+    public int VehicleCount { get; set; }
+}
+
+public class SaveStageRequest
+{
+    [Required, MaxLength(100)]
+    public string Name { get; set; } = string.Empty;
+
+    [Range(0, 365)]
+    public int? AlertDays { get; set; }
+
+    // Vanzari | Junior | null
+    public string? NotifyRole { get; set; }
+
+    public bool IsSaleReady { get; set; }
+}
+
+public class ReorderStagesRequest
+{
+    // Lista completa de StageId-uri in noua ordine
+    [Required]
+    public List<int> StageIds { get; set; } = new();
 }

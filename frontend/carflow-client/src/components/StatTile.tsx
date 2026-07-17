@@ -2,10 +2,16 @@ import type { ReactNode } from "react";
 import Card from "./ui/Card";
 
 const tones = {
-  accent: "bg-accent/15 text-accent",
+  accent: "bg-accent/15 text-accent-hover",
   good: "bg-good/15 text-good",
   warning: "bg-warning/15 text-warning",
   critical: "bg-critical/15 text-critical",
+} as const;
+
+const deltaTones = {
+  good: "text-good",
+  critical: "text-critical",
+  neutral: "text-ink-muted",
 } as const;
 
 export default function StatTile({
@@ -13,24 +19,28 @@ export default function StatTile({
   label,
   value,
   delta,
+  deltaTone = "neutral",
   tone = "accent",
 }: {
   icon: ReactNode;
   label: string;
   value: ReactNode;
   delta?: string;
+  deltaTone?: keyof typeof deltaTones;
   tone?: keyof typeof tones;
 }) {
   return (
-    <Card className="flex items-center gap-4">
-      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-2xl ${tones[tone]}`}>
-        {icon}
+    <Card>
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-sm text-ink-secondary">{label}</p>
+        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${tones[tone]}`}>
+          {icon}
+        </div>
       </div>
-      <div className="min-w-0">
-        <p className="text-2xl font-bold text-ink">{value}</p>
-        <p className="truncate text-sm text-ink-secondary">{label}</p>
-        {delta && <p className="mt-0.5 text-xs text-ink-muted">{delta}</p>}
-      </div>
+      <p className="mt-2 text-3xl font-bold tracking-tight text-ink">{value}</p>
+      {delta && (
+        <p className={`mt-1.5 text-xs font-medium ${deltaTones[deltaTone]}`}>{delta}</p>
+      )}
     </Card>
   );
 }

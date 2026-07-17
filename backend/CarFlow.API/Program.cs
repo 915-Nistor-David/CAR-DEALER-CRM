@@ -14,6 +14,8 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ITenantProvider, TenantProvider>();
 builder.Services.AddSingleton<IFileStorage, LocalDiskFileStorage>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddHostedService<CarFlow.API.Services.ReminderBackgroundService>();
 
 builder.Services.AddDbContext<AppDbContext>(opt =>
     opt.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));

@@ -18,3 +18,12 @@ export const daysLabel = (days: number) =>
   days === 0 ? "azi" : days === 1 ? "1 zi" : `${days} zile`;
 
 export const formatKm = (km: number) => `${km.toLocaleString("ro-RO")} km`;
+
+// Cate zile mai sunt pana la o data (negativ = depasita); ignora ora
+export const daysUntil = (iso: string): number => {
+  const target = new Date(iso);
+  const today = new Date();
+  target.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+  return Math.round((target.getTime() - today.getTime()) / 86_400_000);
+};

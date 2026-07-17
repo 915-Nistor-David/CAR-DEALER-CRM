@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { vehicleService } from "../services/vehicleService";
 import { saleService } from "../services/saleService";
+import { documentService } from "../services/documentService";
+import { authService } from "../services/authService";
 import { assetUrl } from "../services/api";
-import { daysLabel, formatDate, formatDateTime, formatKm, formatMoney } from "../utils/format";
+import { daysLabel, daysUntil, formatDate, formatDateTime, formatKm, formatMoney } from "../utils/format";
 import VehicleForm from "../components/VehicleForm";
 import { Badge, Button, Card, Input, Select } from "../components/ui";
 import { COST_CATEGORIES, PHOTO_CATEGORIES } from "../types";
@@ -20,6 +22,10 @@ export default function VehicleDetail() {
   const [error, setError] = useState("");
   const [showEdit, setShowEdit] = useState(false);
   const [showSaleForm, setShowSaleForm] = useState(false);
+  // Pretul de achizitie/profitul sunt doar ale Ownerului; editarea si vanzarea
+  // sunt pentru Owner + Vanzari; stergerea doar pentru Owner.
+  const isOwner = authService.isOwner();
+  const canEdit = authService.hasRole("Owner", "Vanzari");
 
   const load = async () => {
     try {
@@ -79,14 +85,16 @@ export default function VehicleDetail() {
           </div>
         </div>
         <div className="flex gap-2">
-          {!vehicle.isSold && (
+          {!vehicle.isSold && canEdit && (
             <button onClick={() => setShowSaleForm(true)}
               className="rounded-md bg-good px-4 py-2 text-sm font-semibold text-white hover:opacity-90">
               💰 Marchează ca vândută
             </button>
           )}
-          <Button variant="secondary" onClick={() => setShowEdit(true)}>Editează</Button>
-          {!vehicle.isSold && (
+          {canEdit && (
+            <Button variant="secondary" onClick={() => setShowEdit(true)}>Editează</Button>
+          )}
+          {!vehicle.isSold && isOwner && (
             <button onClick={handleDelete}
               className="rounded-md border border-critical/30 bg-surface px-4 py-2 text-sm text-critical hover:bg-critical/10">
               Șterge
@@ -100,12 +108,13 @@ export default function VehicleDetail() {
         <div className="space-y-6 lg:col-span-2">
           <PhotosSection vehicle={vehicle} onChanged={load} />
           <CostsSection vehicle={vehicle} onChanged={load} />
+          <DocumentsSection vehicle={vehicle} onChanged={load} />
           <HistorySection vehicle={vehicle} />
         </div>
 
         {/* Coloana laterala */}
         <div className="space-y-6">
-          <FinancialCard vehicle={vehicle} />
+          {isOwner && <FinancialCard vehicle={vehicle} />}
           {vehicle.sale && <SaleCard vehicle={vehicle} onChanged={load} />}
           {!vehicle.isSold && <StageMover vehicle={vehicle} stages={stages} onChanged={load} />}
           <InfoCard vehicle={vehicle} />
@@ -125,14 +134,14 @@ export default function VehicleDetail() {
 }
 
 function FinancialCard({ vehicle }: { vehicle: VehicleDetailType }) {
-  const invested = vehicle.purchasePrice + vehicle.totalCosts;
+  const invested = (vehicle.purchasePrice ?? 0) + vehicle.totalCosts;
   return (
     <Card>
       <h2 className="mb-3 text-base font-bold text-ink">Situație financiară</h2>
       <dl className="space-y-2 text-sm">
         <div className="flex justify-between">
           <dt className="text-ink-secondary">Preț achiziție</dt>
-          <dd className="font-medium text-ink">{formatMoney(vehicle.purchasePrice)}</dd>
+          <dd className="font-medium text-ink">{formatMoney(vehicle.purchasePrice ?? 0)}</dd>
         </div>
         <div className="flex justify-between">
           <dt className="text-ink-secondary">Costuri (service, transport...)</dt>
@@ -224,6 +233,21 @@ function InfoCard({ vehicle }: { vehicle: VehicleDetailType }) {
         <div className="flex justify-between">
           <dt className="text-ink-secondary">În stoc din</dt>
           <dd className="text-ink">{formatDate(vehicle.createdAt)}</dd>
+        </div>
+        <div className="flex justify-between">
+          <dt className="text-ink-secondary">Programare RAR</dt>
+          <dd className="text-ink">
+            {vehicle.rarDate ? (
+              <span className="flex items-center gap-1.5">
+                {daysUntil(vehicle.rarDate) <= 3 && (
+                  <Badge tone={daysUntil(vehicle.rarDate) < 0 ? "critical" : "warning"}>
+                    {daysUntil(vehicle.rarDate) < 0 ? "depășită" : "curând"}
+                  </Badge>
+                )}
+                {formatDate(vehicle.rarDate)}
+              </span>
+            ) : "—"}
+          </dd>
         </div>
       </dl>
       {vehicle.description && (
@@ -398,6 +422,109 @@ function CostsSection({ vehicle, onChanged }: { vehicle: VehicleDetailType; onCh
   );
 }
 
+// Acte de bifat per masina — toate rolurile pot adauga/bifa (vanzatorii predau
+// actele, juniorii le pregatesc). Termenele apropiate/depasite sunt evidentiate.
+function DocumentsSection({ vehicle, onChanged }: { vehicle: VehicleDetailType; onChanged: () => void }) {
+  const [name, setName] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const doneCount = vehicle.documents.filter((d) => d.isDone).length;
+
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    setError("");
+    try {
+      await documentService.create(vehicle.vehicleId, {
+        name: name.trim(),
+        isDone: false,
+        dueDate: dueDate || null,
+      });
+      setName("");
+      setDueDate("");
+      onChanged();
+    } catch (err: any) {
+      setError(err.response?.data?.message ?? "Adăugarea a eșuat.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleToggle = async (docId: number) => {
+    const doc = vehicle.documents.find((d) => d.documentId === docId);
+    if (!doc) return;
+    try {
+      await documentService.update(vehicle.vehicleId, docId, {
+        name: doc.name,
+        isDone: !doc.isDone,
+        dueDate: doc.dueDate ?? null,
+      });
+      onChanged();
+    } catch {
+      setError("Actualizarea a eșuat.");
+    }
+  };
+
+  const handleDelete = async (docId: number) => {
+    if (!confirm("Ștergi acest act din listă?")) return;
+    await documentService.remove(vehicle.vehicleId, docId);
+    onChanged();
+  };
+
+  return (
+    <Card>
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-base font-bold text-ink">
+          Acte{" "}
+          <span className="font-normal text-ink-muted">
+            ({doneCount}/{vehicle.documents.length} rezolvate)
+          </span>
+        </h2>
+      </div>
+
+      {error && <p className="mb-2 text-sm text-critical">{error}</p>}
+
+      <form onSubmit={handleAdd} className="mb-4 flex flex-wrap items-end gap-2">
+        <Input required value={name} onChange={(e) => setName(e.target.value)}
+          placeholder="Ex: Carte de identitate, contract, factură..." className="min-w-40 flex-1" />
+        <div>
+          <label className="mb-1 block text-xs text-ink-muted">Termen (opțional)</label>
+          <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-auto" />
+        </div>
+        <Button type="submit" disabled={saving || !name.trim()} className="px-3 py-2">Adaugă</Button>
+      </form>
+
+      {vehicle.documents.length === 0 ? (
+        <p className="py-4 text-center text-sm text-ink-muted">
+          Niciun act adăugat. Notează aici actele de pregătit sau predat pentru această mașină.
+        </p>
+      ) : (
+        <ul className="space-y-1.5">
+          {vehicle.documents.map((d) => (
+            <li key={d.documentId}
+              className="group flex items-center gap-3 rounded-lg border border-border/60 px-3 py-2">
+              <input type="checkbox" checked={d.isDone} onChange={() => handleToggle(d.documentId)}
+                className="cursor-pointer" />
+              <span className={`flex-1 text-sm ${d.isDone ? "text-ink-muted line-through" : "text-ink"}`}>
+                {d.name}
+              </span>
+              {d.dueDate && !d.isDone && (
+                <Badge tone={daysUntil(d.dueDate) < 0 ? "critical" : daysUntil(d.dueDate) <= 3 ? "warning" : "neutral"}>
+                  {formatDate(d.dueDate)}
+                </Badge>
+              )}
+              <button onClick={() => handleDelete(d.documentId)}
+                className="hidden text-xs text-ink-muted hover:text-critical group-hover:block">✕</button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
 function HistorySection({ vehicle }: { vehicle: VehicleDetailType }) {
   return (
     <Card>
@@ -520,7 +647,9 @@ function SaleForm({ vehicle, onClose, onSaved }: {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const invested = vehicle.purchasePrice + vehicle.totalCosts;
+  // Vanzatorii pot vinde dar nu vad pretul de achizitie → fara profit estimat
+  const isOwner = authService.isOwner();
+  const invested = (vehicle.purchasePrice ?? 0) + vehicle.totalCosts;
   const estimatedProfit = form.salePrice - invested;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -544,8 +673,8 @@ function SaleForm({ vehicle, onClose, onSaved }: {
   const label = "mb-1 block text-sm font-medium text-ink-secondary";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4" onClick={onClose}>
-      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-border bg-surface p-6 shadow-xl"
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-border bg-surface p-6 shadow-xl"
         onClick={(e) => e.stopPropagation()}>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold text-ink">
@@ -573,7 +702,7 @@ function SaleForm({ vehicle, onClose, onSaved }: {
             </div>
           </div>
 
-          {form.salePrice > 0 && (
+          {form.salePrice > 0 && isOwner && (
             <div className={`rounded-md px-4 py-3 text-sm ${estimatedProfit >= 0 ? "bg-good/15 text-good" : "bg-critical/15 text-critical"}`}>
               Total investit: <strong>{formatMoney(invested)}</strong> → profit estimat:{" "}
               <strong>{formatMoney(estimatedProfit)}</strong>

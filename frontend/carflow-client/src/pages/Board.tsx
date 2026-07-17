@@ -6,11 +6,13 @@ import {
 } from "@dnd-kit/core";
 import { vehicleService } from "../services/vehicleService";
 import { assetUrl } from "../services/api";
-import { formatMoney, daysLabel } from "../utils/format";
+import { formatMoney, formatKm, daysLabel, daysUntil } from "../utils/format";
+import { CarIcon } from "../components/icons";
 import { getAvailableBrands, getModelsForBrand } from "../utils/carBrands";
 import { useVehicleFilters } from "../hooks/useVehicleFilters";
 import VehicleForm from "../components/VehicleForm";
 import { Badge, Button, Input, Select } from "../components/ui";
+import { authService } from "../services/authService";
 import type { Stage, Vehicle } from "../types";
 
 export default function Board() {
@@ -96,7 +98,9 @@ export default function Board() {
             Trage o mașină în altă coloană pentru a-i schimba etapa.
           </p>
         </div>
-        <Button onClick={() => setShowForm(true)}>+ Adaugă mașină</Button>
+        {authService.hasRole("Owner", "Vanzari") && (
+          <Button onClick={() => setShowForm(true)}>+ Adaugă mașină</Button>
+        )}
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -161,8 +165,8 @@ function StageColumn({ stage, vehicles, onCardClick }: {
   return (
     <div
       ref={setNodeRef}
-      className={`flex w-64 shrink-0 flex-col rounded-lg p-2 transition-colors ${
-        isOver ? "bg-accent/10 ring-2 ring-accent" : "bg-surface-alt"
+      className={`flex w-64 shrink-0 flex-col rounded-xl border p-2 transition-colors ${
+        isOver ? "border-accent/60 bg-accent/10 ring-2 ring-accent" : "border-border/60 bg-surface-alt/60"
       }`}
     >
       <div className="mb-2 flex items-center justify-between px-1">
@@ -198,31 +202,38 @@ function VehicleCard({ vehicle, onClick }: { vehicle: Vehicle; onClick: () => vo
       {...listeners}
       {...attributes}
       onClick={onClick}
-      className={`cursor-grab rounded-lg border border-border bg-surface p-2 shadow-sm transition-shadow hover:shadow-md ${
+      className={`cursor-grab rounded-xl border border-border bg-surface p-2 shadow-sm transition-all hover:border-accent/40 hover:shadow-[0_8px_30px_-8px_rgba(124,90,255,0.35)] ${
         isDragging ? "opacity-70 shadow-lg" : ""
       }`}
     >
       {photo ? (
-        <img src={photo} alt="" className="mb-2 h-24 w-full rounded-md object-cover" />
+        <img src={photo} alt="" className="mb-2 h-24 w-full rounded-lg object-cover" />
       ) : (
-        <div className="mb-2 flex h-24 w-full items-center justify-center rounded-md bg-surface-alt text-3xl">
-          🚗
+        <div className="mb-2 flex h-24 w-full items-center justify-center rounded-lg bg-gradient-to-br from-surface-alt to-surface-hover text-ink-muted">
+          <CarIcon size={28} />
         </div>
       )}
       <div className="px-1 pb-1">
         <p className="truncate text-sm font-semibold text-ink">
           {vehicle.make} {vehicle.model}
         </p>
-        <p className="text-xs text-ink-muted">{vehicle.year}</p>
+        <p className="text-xs text-ink-muted">{vehicle.year} · {formatKm(vehicle.km)}</p>
         <div className="mt-1.5 flex items-center justify-between">
-          <span className="text-xs font-medium text-ink-secondary">{formatMoney(vehicle.purchasePrice)}</span>
+          <span className="text-xs font-semibold text-accent-hover">
+            {vehicle.purchasePrice != null ? formatMoney(vehicle.purchasePrice) : ""}
+          </span>
           <Badge tone={vehicle.daysInStage >= 7 ? "critical" : vehicle.daysInStage >= 3 ? "warning" : "neutral"}>
             {daysLabel(vehicle.daysInStage)}
           </Badge>
         </div>
-        {vehicle.isSold && (
-          <Badge tone="good" className="mt-1">Vândută</Badge>
-        )}
+        <div className="mt-1 flex flex-wrap gap-1">
+          {vehicle.rarDate && daysUntil(vehicle.rarDate) <= 3 && (
+            <Badge tone={daysUntil(vehicle.rarDate) < 0 ? "critical" : "warning"}>
+              RAR {new Date(vehicle.rarDate).toLocaleDateString("ro-RO", { day: "2-digit", month: "short" })}
+            </Badge>
+          )}
+          {vehicle.isSold && <Badge tone="good">Vândută</Badge>}
+        </div>
       </div>
     </div>
   );

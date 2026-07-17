@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { vehicleService } from "../services/vehicleService";
 import { assetUrl } from "../services/api";
-import { formatKm, formatMoney } from "../utils/format";
+import { daysLabel, formatKm, formatMoney } from "../utils/format";
 import { getAvailableBrands, getModelsForBrand } from "../utils/carBrands";
 import { useVehicleFilters } from "../hooks/useVehicleFilters";
 import VehicleForm from "../components/VehicleForm";
+import { CarIcon } from "../components/icons";
 import { Badge, Button, Card, Input, Select } from "../components/ui";
+import { authService } from "../services/authService";
 import type { Vehicle } from "../types";
 
 export default function Vehicles() {
@@ -14,7 +16,15 @@ export default function Vehicles() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { search, setSearch, brand, setBrand, model, setModel, filterVehicles } = useVehicleFilters();
+
+  useEffect(() => {
+    const q = searchParams.get("q");
+    if (q) setSearch(q);
+    // preluam cautarea din bara de navigare doar la sosirea pe pagina
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const load = async () => {
     try {
@@ -47,7 +57,9 @@ export default function Vehicles() {
             {hasActiveFilters ? `${filtered.length} mașini găsite din ${vehicles.length}` : `${vehicles.length} mașini în total`}
           </p>
         </div>
-        <Button onClick={() => setShowForm(true)}>+ Adaugă mașină</Button>
+        {authService.hasRole("Owner", "Vanzari") && (
+          <Button onClick={() => setShowForm(true)}>+ Adaugă mașină</Button>
+        )}
       </div>
 
       <div className="flex flex-col gap-4 lg:flex-row">
@@ -85,64 +97,24 @@ export default function Vehicles() {
 
         <div className="min-w-0 flex-1">
           {filtered.length === 0 ? (
-            <div className="rounded-xl border border-border bg-surface p-10 text-center shadow-sm">
-              <div className="text-4xl">🚗</div>
+            <div className="rounded-2xl border border-border bg-surface p-10 text-center shadow-sm">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/15 text-accent-hover">
+                <CarIcon size={26} />
+              </div>
               <p className="mt-2 text-ink-secondary">
                 {hasActiveFilters ? "Nicio mașină nu corespunde filtrelor." : "Nu ai încă nicio mașină în stoc."}
               </p>
-              {!hasActiveFilters && (
+              {!hasActiveFilters && authService.hasRole("Owner", "Vanzari") && (
                 <Button onClick={() => setShowForm(true)} className="mt-4">
                   Adaugă prima mașină
                 </Button>
               )}
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-border bg-surface shadow-sm">
-              <table className="w-full text-left text-sm">
-                <thead className="border-b border-border bg-surface-alt text-xs uppercase text-ink-muted">
-                  <tr>
-                    <th className="px-4 py-3">Mașină</th>
-                    <th className="px-4 py-3">An</th>
-                    <th className="px-4 py-3">Km</th>
-                    <th className="px-4 py-3">VIN</th>
-                    <th className="px-4 py-3">Etapă</th>
-                    <th className="px-4 py-3">Preț achiziție</th>
-                    <th className="px-4 py-3">Costuri</th>
-                    <th className="px-4 py-3"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((v) => (
-                    <tr
-                      key={v.vehicleId}
-                      onClick={() => navigate(`/vehicles/${v.vehicleId}`)}
-                      className="cursor-pointer border-b border-border last:border-0 hover:bg-surface-alt"
-                    >
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          {assetUrl(v.mainPhotoUrl) ? (
-                            <img src={assetUrl(v.mainPhotoUrl)} alt=""
-                              className="h-10 w-14 rounded object-cover" />
-                          ) : (
-                            <div className="flex h-10 w-14 items-center justify-center rounded bg-surface-alt">🚗</div>
-                          )}
-                          <span className="font-medium text-ink">{v.make} {v.model}</span>
-                          {v.isSold && <Badge tone="good">Vândută</Badge>}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-ink-secondary">{v.year}</td>
-                      <td className="px-4 py-3 text-ink-secondary">{formatKm(v.km)}</td>
-                      <td className="px-4 py-3 font-mono text-xs text-ink-muted">{v.vin || "—"}</td>
-                      <td className="px-4 py-3">
-                        <Badge tone="info">{v.currentStageName}</Badge>
-                      </td>
-                      <td className="px-4 py-3 text-ink-secondary">{formatMoney(v.purchasePrice)}</td>
-                      <td className="px-4 py-3 text-ink-secondary">{formatMoney(v.totalCosts)}</td>
-                      <td className="px-4 py-3 text-right text-accent">Detalii →</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {filtered.map((v) => (
+                <VehicleGridCard key={v.vehicleId} vehicle={v} onClick={() => navigate(`/vehicles/${v.vehicleId}`)} />
+              ))}
             </div>
           )}
         </div>
@@ -154,6 +126,58 @@ export default function Vehicles() {
           onSaved={(id) => { setShowForm(false); navigate(`/vehicles/${id}`); }}
         />
       )}
+    </div>
+  );
+}
+
+function VehicleGridCard({ vehicle: v, onClick }: { vehicle: Vehicle; onClick: () => void }) {
+  const photo = assetUrl(v.mainPhotoUrl);
+
+  return (
+    <div
+      onClick={onClick}
+      className="group cursor-pointer overflow-hidden rounded-2xl border border-border bg-surface shadow-sm transition-all hover:border-accent/40 hover:shadow-[0_8px_30px_-8px_rgba(124,90,255,0.35)]"
+    >
+      <div className="relative h-40 w-full">
+        {photo ? (
+          <img
+            src={photo}
+            alt={`${v.make} ${v.model}`}
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-surface-alt to-surface-hover text-ink-muted">
+            <CarIcon size={40} />
+          </div>
+        )}
+        <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2.5 py-0.5 text-[11px] font-medium text-white backdrop-blur-sm">
+          {v.currentStageName}
+        </span>
+        {v.isSold && (
+          <span className="absolute right-2 top-2 rounded-full bg-good/90 px-2.5 py-0.5 text-[11px] font-semibold text-white">
+            Vândută
+          </span>
+        )}
+      </div>
+      <div className="p-4">
+        <p className="truncate text-base font-semibold text-ink">{v.make} {v.model}</p>
+        <p className="mt-0.5 truncate text-xs text-ink-muted">
+          {v.year} · {formatKm(v.km)}{v.vin ? ` · ${v.vin}` : ""}
+        </p>
+        <div className="mt-3 flex items-center justify-between">
+          <span className="text-lg font-bold text-accent-hover">
+            {v.purchasePrice != null ? formatMoney(v.purchasePrice) : ""}
+          </span>
+          {!v.isSold && (
+            <Badge tone={v.daysInStage >= 7 ? "critical" : v.daysInStage >= 3 ? "warning" : "neutral"}>
+              {daysLabel(v.daysInStage)} în etapă
+            </Badge>
+          )}
+        </div>
+        {v.totalCosts > 0 && (
+          <p className="mt-1.5 text-xs text-ink-muted">+ {formatMoney(v.totalCosts)} costuri</p>
+        )}
+      </div>
     </div>
   );
 }
