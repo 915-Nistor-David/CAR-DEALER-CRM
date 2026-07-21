@@ -17,3 +17,6 @@ dist-ssr/
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Capturi de ecran ad-hoc din radacina (site1.png, site2.png, ...)
+site*.png
