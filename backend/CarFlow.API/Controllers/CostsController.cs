@@ -43,12 +43,18 @@ public class CostsController : ControllerBase
             Category = req.Category,
             Amount = req.Amount,
             Date = req.Date,
-            Description = req.Description
+            Description = req.Description,
+            CreatedByUserId = _tenant.UserId
         };
         _db.VehicleCosts.Add(cost);
         await _db.SaveChangesAsync();
 
         await NotifyOwnerAsync(vehicle, cost, added: true);
+
+        var authorName = await _db.Users
+            .Where(u => u.UserId == _tenant.UserId)
+            .Select(u => u.Name)
+            .FirstOrDefaultAsync();
 
         return Ok(new CostDto
         {
@@ -56,7 +62,9 @@ public class CostsController : ControllerBase
             Category = cost.Category,
             Amount = cost.Amount,
             Date = cost.Date,
-            Description = cost.Description
+            Description = cost.Description,
+            CreatedByName = authorName,
+            CanDelete = true
         });
     }
 
@@ -66,6 +74,12 @@ public class CostsController : ControllerBase
         var cost = await _db.VehicleCosts
             .FirstOrDefaultAsync(c => c.CostId == costId && c.VehicleId == vehicleId);
         if (cost == null) return NotFound();
+
+        // Pana acum oricine putea sterge orice cost, in tacere. Costul intra in
+        // profitul masinii, deci il scoate doar cine l-a pus sau patronul.
+        // Costurile vechi (fara autor) raman doar in mana Ownerului.
+        if (!User.IsInRole("Owner") && cost.CreatedByUserId != _tenant.UserId)
+            return Forbid();
 
         var vehicle = await _db.Vehicles.FirstOrDefaultAsync(v => v.VehicleId == vehicleId);
 

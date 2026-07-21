@@ -13,4 +13,7 @@ public class VehicleCost : ITenantEntity
     public DateOnly Date { get; set; }
     public string? Description { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    // Cine a trecut cheltuiala. Nullable: costurile de dinaintea acestei coloane
+    // nu au autor si se afiseaza cu "—".
+    public int? CreatedByUserId { get; set; }
 }

@@ -63,10 +63,28 @@ public class VehiclesController : ControllerBase
             })
             .ToListAsync();
 
+        // Ultima mutare per masina, intr-o singura interogare: randul de istoric
+        // dupa care nu mai exista altul mai nou (greatest-n-per-group prin NOT EXISTS).
+        var lastMoves = await (
+            from h in _db.VehicleStatusHistory
+            where !_db.VehicleStatusHistory.Any(h2 => h2.VehicleId == h.VehicleId &&
+                (h2.Timestamp > h.Timestamp || (h2.Timestamp == h.Timestamp && h2.HistoryId > h.HistoryId)))
+            select new
+            {
+                h.VehicleId,
+                h.Timestamp,
+                UserName = _db.Users.Where(u => u.UserId == h.UserId).Select(u => u.Name).FirstOrDefault()
+            }).ToDictionaryAsync(x => x.VehicleId);
+
         foreach (var v in vehicles)
         {
             v.DaysInStage = Math.Max(0, (int)(DateTime.UtcNow - v.EnteredStageAt).TotalDays);
             v.MainPhotoUrl = _photoUrls.Sign(v.MainPhotoUrl);
+            if (lastMoves.TryGetValue(v.VehicleId, out var move))
+            {
+                v.LastMovedBy = move.UserName;
+                v.LastMovedAt = move.Timestamp;
+            }
         }
 
         return Ok(vehicles);
@@ -89,7 +107,9 @@ public class VehiclesController : ControllerBase
 
         var history = await _db.VehicleStatusHistory
             .Where(h => h.VehicleId == id)
-            .OrderByDescending(h => h.Timestamp)
+            // HistoryId ca departajare: prima intrare din lista e si "ultima mutare",
+            // deci ordinea trebuie sa fie fara ambiguitate la timestamp-uri egale.
+            .OrderByDescending(h => h.Timestamp).ThenByDescending(h => h.HistoryId)
             .Select(h => new HistoryEntryDto
             {
                 HistoryId = h.HistoryId,
@@ -117,6 +137,19 @@ public class VehiclesController : ControllerBase
             })
             .ToListAsync();
 
+        // Autorii costurilor. Users nu are filtru global de tenant (login-ul cauta
+        // dupa email in tot tabelul), deci filtram explicit pe dealership.
+        var costAuthorIds = v.Costs.Where(c => c.CreatedByUserId != null)
+            .Select(c => c.CreatedByUserId!.Value).Distinct().ToList();
+        var costAuthors = costAuthorIds.Count == 0
+            ? new Dictionary<int, string>()
+            : await _db.Users
+                .Where(u => costAuthorIds.Contains(u.UserId) && u.DealershipId == _tenant.DealershipId)
+                .ToDictionaryAsync(u => u.UserId, u => u.Name);
+
+        string? AuthorName(int? userId) =>
+            userId != null && costAuthors.TryGetValue(userId.Value, out var name) ? name : null;
+
         var totalCosts = v.Costs.Sum(c => c.Amount);
         var enteredStageAt = await _db.VehicleStatusHistory
             .Where(h => h.VehicleId == id && h.ToStageId == v.CurrentStageId)
@@ -143,6 +176,9 @@ public class VehiclesController : ControllerBase
             IsSold = v.Sale != null,
             EnteredStageAt = enteredStageAt,
             DaysInStage = Math.Max(0, (int)(DateTime.UtcNow - enteredStageAt).TotalDays),
+            // Istoricul e deja sortat descrescator, deci prima intrare e ultima mutare.
+            LastMovedBy = history.FirstOrDefault()?.UserName,
+            LastMovedAt = history.FirstOrDefault()?.Timestamp,
             Photos = v.Photos.OrderBy(p => p.SortOrder).ThenBy(p => p.PhotoId)
                 .Select(p => new PhotoDto
                 {
@@ -158,7 +194,9 @@ public class VehiclesController : ControllerBase
                     Category = c.Category,
                     Amount = c.Amount,
                     Date = c.Date,
-                    Description = c.Description
+                    Description = c.Description,
+                    CreatedByName = AuthorName(c.CreatedByUserId),
+                    CanDelete = isOwner || c.CreatedByUserId == _tenant.UserId
                 }).ToList(),
             History = history,
             Documents = documents,
@@ -269,8 +307,11 @@ public class VehiclesController : ControllerBase
         return Ok(new { message = "Mașina a fost ștearsă." });
     }
 
-    // Mutarea intr-o alta etapa — toate rolurile pot muta (cerinta dealerului).
+    // Mutarea intr-o alta etapa — doar Owner si Vanzari. Juniorii raporteaza
+    // progresul altfel: la interviu s-a cerut sa poata muta ei masina, dar in
+    // practica un junior putea sa o duca direct in "Vanduta", ceea ce nu are sens.
     [HttpPut("{id}/stage")]
+    [Authorize(Roles = "Owner,Vanzari")]
     public async Task<IActionResult> ChangeStage(int id, ChangeStageRequest req)
     {
         var vehicle = await _db.Vehicles
@@ -285,6 +326,16 @@ public class VehiclesController : ControllerBase
         var stage = await _db.PipelineStages.FirstOrDefaultAsync(s => s.StageId == req.StageId);
         if (stage == null)
             return BadRequest(new { message = "Etapa nu există." });
+
+        // In etapa de vanzare se intra DOAR inregistrand vanzarea. Altfel ramanea
+        // o masina care arata vanduta dar nu are pret, cumparator sau profit,
+        // nu apare in /sales si nici macar nu primeste eticheta "Vanduta"
+        // (IsSold se calculeaza din existenta vanzarii, nu din etapa).
+        if (stage.IsSoldStage)
+            return BadRequest(new
+            {
+                message = "În această etapă se ajunge doar înregistrând vânzarea (butonul „Marchează ca vândută”)."
+            });
 
         if (vehicle.CurrentStageId == req.StageId)
             return Ok(new { message = "Mașina este deja în această etapă." });

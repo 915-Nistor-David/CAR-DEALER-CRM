@@ -24,6 +24,11 @@ public class VehicleDto
     public bool IsSold { get; set; }
     public DateTime EnteredStageAt { get; set; }
     public int DaysInStage { get; set; }
+    // Ultima schimbare de etapa: cine si cand. Patronul a cerut sa vada fara sa
+    // deschida istoricul cine muta masinile. Derivat din VehicleStatusHistory,
+    // fara coloane noi. null doar daca masina nu are nicio intrare in istoric.
+    public string? LastMovedBy { get; set; }
+    public DateTime? LastMovedAt { get; set; }
 }
 
 public class HistoryEntryDto
@@ -43,6 +48,10 @@ public class CostDto
     public decimal Amount { get; set; }
     public DateOnly Date { get; set; }
     public string? Description { get; set; }
+    // null pentru costurile inregistrate inainte sa existe coloana de autor
+    public string? CreatedByName { get; set; }
+    // Sterge doar autorul sau Ownerul — frontendul afiseaza butonul dupa acest flag
+    public bool CanDelete { get; set; }
 }
 
 public class PhotoDto

@@ -177,6 +177,10 @@ function VehicleGridCard({ vehicle: v, onClick }: { vehicle: Vehicle; onClick: (
         {v.totalCosts > 0 && (
           <p className="mt-1.5 text-xs text-ink-muted">+ {formatMoney(v.totalCosts)} costuri</p>
         )}
+        {/* Cine a mutat-o ultima data — patronul vrea sa vada asta din lista, nu din istoric. */}
+        {v.lastMovedBy && (
+          <p className="mt-1.5 truncate text-xs text-ink-muted">Mutată de {v.lastMovedBy}</p>
+        )}
       </div>
     </div>
   );

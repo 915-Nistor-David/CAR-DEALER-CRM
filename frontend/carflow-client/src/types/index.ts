@@ -47,6 +47,9 @@ export interface Vehicle {
   isSold: boolean;
   enteredStageAt: string;
   daysInStage: number;
+  // Cine a facut ultima schimbare de etapa si cand (derivat din istoric)
+  lastMovedBy?: string | null;
+  lastMovedAt?: string | null;
 }
 
 export interface Photo {
@@ -62,6 +65,10 @@ export interface Cost {
   amount: number;
   date: string;
   description?: string | null;
+  // null pentru costurile inregistrate inainte sa existe coloana de autor
+  createdByName?: string | null;
+  // Sterge doar autorul sau Ownerul — decis pe backend
+  canDelete: boolean;
 }
 
 export interface HistoryEntry {

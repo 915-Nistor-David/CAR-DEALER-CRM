@@ -23,6 +23,9 @@ export default function Board() {
   const [showForm, setShowForm] = useState(false);
   const justDragged = useRef(false);
   const navigate = useNavigate();
+  // Juniorii nu mai muta masinile intre etape (backendul respinge oricum);
+  // pentru ei board-ul e doar de citit, cu click pe card catre detaliu.
+  const canMove = authService.hasRole("Owner", "Vanzari");
   const { search, setSearch, brand, setBrand, model, setModel, filterVehicles } = useVehicleFilters();
 
   const sensors = useSensors(
@@ -95,7 +98,9 @@ export default function Board() {
         <div>
           <h1 className="text-2xl font-bold text-ink">Pipeline</h1>
           <p className="text-sm text-ink-secondary">
-            Trage o mașină în altă coloană pentru a-i schimba etapa.
+            {canMove
+              ? "Trage o mașină în altă coloană pentru a-i schimba etapa."
+              : "Click pe o mașină pentru detalii. Mutarea între etape o fac patronul și echipa de vânzări."}
           </p>
         </div>
         {authService.hasRole("Owner", "Vanzari") && (
@@ -140,6 +145,7 @@ export default function Board() {
               stage={stage}
               vehicles={filtered.filter((v) => v.currentStageId === stage.stageId)}
               onCardClick={handleCardClick}
+              canMove={canMove}
             />
           ))}
         </div>
@@ -155,10 +161,11 @@ export default function Board() {
   );
 }
 
-function StageColumn({ stage, vehicles, onCardClick }: {
+function StageColumn({ stage, vehicles, onCardClick, canMove }: {
   stage: Stage;
   vehicles: Vehicle[];
   onCardClick: (id: number) => void;
+  canMove: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `stage-${stage.stageId}` });
 
@@ -177,16 +184,20 @@ function StageColumn({ stage, vehicles, onCardClick }: {
       </div>
       <div className="flex min-h-24 flex-col gap-2">
         {vehicles.map((v) => (
-          <VehicleCard key={v.vehicleId} vehicle={v} onClick={() => onCardClick(v.vehicleId)} />
+          <VehicleCard key={v.vehicleId} vehicle={v} onClick={() => onCardClick(v.vehicleId)}
+            canMove={canMove} />
         ))}
       </div>
     </div>
   );
 }
 
-function VehicleCard({ vehicle, onClick }: { vehicle: Vehicle; onClick: () => void }) {
+function VehicleCard({ vehicle, onClick, canMove }: {
+  vehicle: Vehicle; onClick: () => void; canMove: boolean;
+}) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `vehicle-${vehicle.vehicleId}`,
+    disabled: !canMove,
   });
 
   const style = transform
@@ -202,9 +213,9 @@ function VehicleCard({ vehicle, onClick }: { vehicle: Vehicle; onClick: () => vo
       {...listeners}
       {...attributes}
       onClick={onClick}
-      className={`cursor-grab rounded-xl border border-border bg-surface p-2 shadow-sm transition-all hover:border-accent/40 hover:shadow-[0_8px_30px_-8px_rgba(124,90,255,0.35)] ${
-        isDragging ? "opacity-70 shadow-lg" : ""
-      }`}
+      className={`rounded-xl border border-border bg-surface p-2 shadow-sm transition-all hover:border-accent/40 hover:shadow-[0_8px_30px_-8px_rgba(124,90,255,0.35)] ${
+        canMove ? "cursor-grab" : "cursor-pointer"
+      } ${isDragging ? "opacity-70 shadow-lg" : ""}`}
     >
       {photo ? (
         <img src={photo} alt="" className="mb-2 h-24 w-full rounded-lg object-cover" />

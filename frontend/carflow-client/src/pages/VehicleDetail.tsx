@@ -83,6 +83,13 @@ export default function VehicleDetail() {
               <Badge tone="good" className="px-3 py-1 text-sm">✓ Vândută</Badge>
             )}
           </div>
+          {/* Patronul a cerut sa vada cine muta masinile fara sa deschida istoricul. */}
+          {vehicle.lastMovedBy && (
+            <p className="mt-1.5 text-xs text-ink-muted">
+              Mutată ultima dată de <span className="font-medium text-ink-secondary">{vehicle.lastMovedBy}</span>
+              {vehicle.lastMovedAt && ` · ${formatDateTime(vehicle.lastMovedAt)}`}
+            </p>
+          )}
         </div>
         <div className="flex gap-2">
           {!vehicle.isSold && canEdit && (
@@ -119,7 +126,7 @@ export default function VehicleDetail() {
         <div className="space-y-6">
           {isOwner && <FinancialCard vehicle={vehicle} />}
           {vehicle.sale && <SaleCard vehicle={vehicle} onChanged={load} />}
-          {!vehicle.isSold && <StageMover vehicle={vehicle} stages={stages} onChanged={load} />}
+          {!vehicle.isSold && canEdit && <StageMover vehicle={vehicle} stages={stages} onChanged={load} />}
           <InfoCard vehicle={vehicle} />
         </div>
       </div>
@@ -461,6 +468,7 @@ function CostsSection({ vehicle, onChanged }: { vehicle: VehicleDetailType; onCh
               <th className="py-2">Categorie</th>
               <th className="py-2">Dată</th>
               <th className="py-2">Descriere</th>
+              <th className="py-2">Adăugat de</th>
               <th className="py-2 text-right">Sumă</th>
               <th></th>
             </tr>
@@ -473,10 +481,15 @@ function CostsSection({ vehicle, onChanged }: { vehicle: VehicleDetailType; onCh
                 </td>
                 <td className="py-2 text-ink-secondary">{formatDate(c.date)}</td>
                 <td className="py-2 text-ink-secondary">{c.description || "—"}</td>
+                {/* Costurile de dinaintea coloanei de autor raman fara nume. */}
+                <td className="py-2 text-ink-secondary">{c.createdByName || "—"}</td>
                 <td className="py-2 text-right font-medium text-ink">{formatMoney(c.amount)}</td>
                 <td className="py-2 pl-2 text-right">
-                  <button onClick={() => handleDelete(c.costId)}
-                    className="text-xs text-ink-muted hover:text-critical">✕</button>
+                  {c.canDelete && (
+                    <button onClick={() => handleDelete(c.costId)}
+                      className="text-xs text-ink-muted hover:text-critical"
+                      title="Șterge costul">✕</button>
+                  )}
                 </td>
               </tr>
             ))}
