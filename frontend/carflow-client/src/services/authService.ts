@@ -21,7 +21,15 @@ export const authService = {
 
   getUser(): AuthUser | null {
     const raw = localStorage.getItem("carflow_user");
-    return raw ? (JSON.parse(raw) as AuthUser) : null;
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw) as AuthUser;
+    } catch {
+      // Valoare coruptă: se apelează în corpul de render (Navbar, ProtectedRoute),
+      // deci o excepție aici ar albi toată aplicația fără cale de ieșire.
+      this.logout();
+      return null;
+    }
   },
 
   isLoggedIn(): boolean {

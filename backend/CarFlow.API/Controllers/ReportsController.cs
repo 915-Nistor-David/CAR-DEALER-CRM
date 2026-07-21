@@ -7,6 +7,8 @@ namespace CarFlow.API.Controllers;
 
 public class StageMoveCountDto
 {
+    // Etapele sterse au toate acelasi nume generic, deci numele nu e identificator unic.
+    public int StageId { get; set; }
     public string StageName { get; set; } = string.Empty;
     public int Count { get; set; }
 }
@@ -38,8 +40,11 @@ public class ReportsController : ControllerBase
     [HttpGet("activity")]
     public async Task<IActionResult> Activity([FromQuery] DateOnly? from, [FromQuery] DateOnly? to)
     {
-        var fromDate = from ?? DateOnly.FromDateTime(DateTime.Today.AddDays(-30));
-        var toDate = to ?? DateOnly.FromDateTime(DateTime.Today);
+        // Timestamp-urile sunt UTC, deci si intervalul implicit trebuie calculat in UTC —
+        // altfel fereastra depinde de fusul serverului si mutarile de seara cad in ziua gresita.
+        var todayUtc = DateOnly.FromDateTime(DateTime.UtcNow);
+        var fromDate = from ?? todayUtc.AddDays(-30);
+        var toDate = to ?? todayUtc;
 
         var fromUtc = DateTime.SpecifyKind(fromDate.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
         var toUtc = DateTime.SpecifyKind(toDate.AddDays(1).ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
@@ -72,6 +77,7 @@ public class ReportsController : ControllerBase
                     .GroupBy(m => m.ToStageId)
                     .Select(sg => new StageMoveCountDto
                     {
+                        StageId = sg.Key,
                         // Etapele sterse nu mai au nume — le afisam generic
                         StageName = stageNames.TryGetValue(sg.Key, out var name) ? name : "Etapă ștearsă",
                         Count = sg.Count()

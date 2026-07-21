@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
 import { reportService } from "../services/reportService";
-import { formatDateTime } from "../utils/format";
+import { formatDateTime, toDateOnlyIso } from "../utils/format";
 import { Badge, Button, Input } from "../components/ui";
 import { ROLE_LABELS } from "../types";
 import type { ActivityReport } from "../types";
 
+// Ziua locala, nu toISOString() — acesta din urma da ziua UTC, adica "ieri"
+// pentru Romania in primele ore ale diminetii, si excludea ziua curenta din raport.
 const isoDaysAgo = (days: number) => {
   const d = new Date();
   d.setDate(d.getDate() - days);
-  return d.toISOString().slice(0, 10);
+  return toDateOnlyIso(d);
 };
 
 // Raport pentru Owner: cine a mutat cate masini intre etape (contorizarea angajatilor).
@@ -103,7 +105,7 @@ export default function Activity() {
                   <td className="px-4 py-3">
                     <div className="flex max-w-md flex-wrap gap-1">
                       {u.stageBreakdown.map((s) => (
-                        <span key={s.stageName}
+                        <span key={s.stageId}
                           className="rounded-full bg-surface-alt px-2 py-0.5 text-[11px] text-ink-secondary">
                           {s.stageName} × {s.count}
                         </span>

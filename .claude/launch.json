@@ -2,6 +2,12 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "carflow-backend",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "backend/CarFlow.API"],
+      "port": 5100
+    },
+    {
       "name": "carflow-frontend",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],

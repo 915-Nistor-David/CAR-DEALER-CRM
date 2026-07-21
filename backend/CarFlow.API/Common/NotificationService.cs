@@ -47,7 +47,9 @@ public class NotificationService : INotificationService
             });
         }
 
-        if (userIds.Count > 0)
-            await _db.SaveChangesAsync();
+        // Salvam mereu, chiar daca nimeni nu e de notificat: apelantii (ex. serviciul
+        // de remindere) seteaza markeri de deduplicare inainte de apel si se bazeaza
+        // pe acest commit ca marker + notificari sa ajunga in DB impreuna.
+        await _db.SaveChangesAsync();
     }
 }

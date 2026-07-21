@@ -3,25 +3,37 @@ import { useNavigate } from "react-router-dom";
 import { vehicleService } from "../services/vehicleService";
 import { saleService } from "../services/saleService";
 import { assetUrl } from "../services/api";
-import { formatDate, formatMoney } from "../utils/format";
+import { formatDate, formatMoney, parseDateOnly } from "../utils/format";
 import { authService } from "../services/authService";
 import StatTile from "../components/StatTile";
 import RingChart from "../components/charts/RingChart";
 import AreaChart, { type AreaPoint } from "../components/charts/AreaChart";
 import { CarIcon, ClockIcon, EuroIcon, TagIcon } from "../components/icons";
 import { Card } from "../components/ui";
-import type { SaleListItem, Vehicle } from "../types";
-
-const PREP_STAGES = new Set([
-  "Cumpărată", "Transport", "Service", "Inspecție",
-  "Mecanică", "Vopsitorie", "Climă", "Detailing",
-]);
-const FOR_SALE_STAGES = new Set(["Listată", "Gata de vânzare", "Vânzare în curs"]);
+import type { SaleListItem, Stage, Vehicle } from "../types";
 
 const sameMonth = (iso: string, ref: Date) => {
-  const d = new Date(iso);
+  const d = parseDateOnly(iso);
   return d.getFullYear() === ref.getFullYear() && d.getMonth() === ref.getMonth();
 };
+
+// Clasificam dupa pozitia in pipeline, nu dupa nume: etapele sunt configurabile
+// din /etape, deci orice lista de nume hardcodata se rupe la prima redenumire.
+// "Pregatire" = tot ce e inainte de prima etapa marcata "gata de vanzare".
+function splitByReadiness(vehicles: Vehicle[], stages: Stage[]) {
+  const orderById = new Map(stages.map((s) => [s.stageId, s.sortOrder]));
+  const saleReadyOrder = stages.find((s) => s.isSaleReady)?.sortOrder ?? Infinity;
+
+  let prep = 0;
+  let forSale = 0;
+  for (const v of vehicles) {
+    const order = orderById.get(v.currentStageId);
+    if (order == null) continue;
+    if (order < saleReadyOrder) prep++;
+    else forSale++;
+  }
+  return { prep, forSale, other: vehicles.length - prep - forSale };
+}
 
 // ultimele N luni ca puncte { label: "iul.", value }, insumand profitul vanzarilor
 function monthlyProfit(sales: SaleListItem[], months = 6): AreaPoint[] {
@@ -40,6 +52,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [sales, setSales] = useState<SaleListItem[]>([]);
+  const [stages, setStages] = useState<Stage[]>([]);
   const [loading, setLoading] = useState(true);
   const user = authService.getUser();
   // Junior nu are acces la vanzari; profitul e doar pentru Owner
@@ -49,12 +62,14 @@ export default function Dashboard() {
   useEffect(() => {
     (async () => {
       try {
-        const [v, s] = await Promise.all([
+        const [v, s, st] = await Promise.all([
           vehicleService.getAll(),
           canSeeSales ? saleService.getAll() : Promise.resolve([]),
+          vehicleService.getStages(),
         ]);
         setVehicles(v);
         setSales(s);
+        setStages(st);
       } finally {
         setLoading(false);
       }
@@ -87,14 +102,12 @@ export default function Dashboard() {
 
   const addedThisMonth = vehicles.filter((v) => sameMonth(v.createdAt, now)).length;
 
-  const prepCount = active.filter((v) => PREP_STAGES.has(v.currentStageName)).length;
-  const forSaleCount = active.filter((v) => FOR_SALE_STAGES.has(v.currentStageName)).length;
-  const otherCount = active.length - prepCount - forSaleCount;
+  const readiness = splitByReadiness(active, stages);
 
   const stageSegments = [
-    { label: "Pregătire", value: prepCount, color: "var(--color-accent)" },
-    { label: "De vânzare", value: forSaleCount, color: "var(--color-good)" },
-    { label: "Alte etape", value: otherCount, color: "var(--color-ink-muted)" },
+    { label: "Pregătire", value: readiness.prep, color: "var(--color-accent)" },
+    { label: "De vânzare", value: readiness.forSale, color: "var(--color-good)" },
+    { label: "Alte etape", value: readiness.other, color: "var(--color-ink-muted)" },
   ].filter((s) => s.value > 0);
 
   const healthSegments = [

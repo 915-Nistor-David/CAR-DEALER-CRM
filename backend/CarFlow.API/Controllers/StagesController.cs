@@ -35,6 +35,7 @@ public class StagesController : ControllerBase
                 AlertDays = s.AlertDays,
                 NotifyRole = s.NotifyRole,
                 IsSaleReady = s.IsSaleReady,
+                IsSoldStage = s.IsSoldStage,
                 VehicleCount = _db.Vehicles.Count(v => v.CurrentStageId == s.StageId)
             })
             .ToListAsync();
@@ -56,9 +57,12 @@ public class StagesController : ControllerBase
             SortOrder = maxOrder + 1,
             AlertDays = req.AlertDays,
             NotifyRole = req.NotifyRole,
-            IsSaleReady = req.IsSaleReady
+            IsSaleReady = req.IsSaleReady,
+            IsSoldStage = req.IsSoldStage
         };
         _db.PipelineStages.Add(stage);
+
+        if (req.IsSoldStage) await ClearOtherSoldStagesAsync(stage.StageId);
         await _db.SaveChangesAsync();
 
         return Ok(new { stageId = stage.StageId });
@@ -78,9 +82,22 @@ public class StagesController : ControllerBase
         stage.AlertDays = req.AlertDays;
         stage.NotifyRole = req.NotifyRole;
         stage.IsSaleReady = req.IsSaleReady;
+        stage.IsSoldStage = req.IsSoldStage;
+
+        if (req.IsSoldStage) await ClearOtherSoldStagesAsync(stage.StageId);
         await _db.SaveChangesAsync();
 
         return Ok(new { message = "Etapa a fost actualizată." });
+    }
+
+    // O singura etapa poate fi cea de "vanduta" — altfel vanzarea n-ar sti unde sa mute masina.
+    private async Task ClearOtherSoldStagesAsync(int keepStageId)
+    {
+        var others = await _db.PipelineStages
+            .Where(s => s.IsSoldStage && s.StageId != keepStageId)
+            .ToListAsync();
+
+        foreach (var s in others) s.IsSoldStage = false;
     }
 
     // Reordonare completa: primeste toate StageId-urile in noua ordine.

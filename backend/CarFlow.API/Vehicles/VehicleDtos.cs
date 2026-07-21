@@ -124,6 +124,7 @@ public class StageDto
     public int? AlertDays { get; set; }
     public string? NotifyRole { get; set; }
     public bool IsSaleReady { get; set; }
+    public bool IsSoldStage { get; set; }
     // Cate masini sunt acum in aceasta etapa (pentru pagina de administrare)
     public int VehicleCount { get; set; }
 }
@@ -140,6 +141,7 @@ public class SaveStageRequest
     public string? NotifyRole { get; set; }
 
     public bool IsSaleReady { get; set; }
+    public bool IsSoldStage { get; set; }
 }
 
 public class ReorderStagesRequest

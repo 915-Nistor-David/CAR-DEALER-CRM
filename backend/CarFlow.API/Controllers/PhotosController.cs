@@ -19,11 +19,13 @@ public class PhotosController : ControllerBase
 
     private readonly AppDbContext _db;
     private readonly IFileStorage _storage;
+    private readonly IPhotoUrlSigner _photoUrls;
 
-    public PhotosController(AppDbContext db, IFileStorage storage)
+    public PhotosController(AppDbContext db, IFileStorage storage, IPhotoUrlSigner photoUrls)
     {
         _db = db;
         _storage = storage;
+        _photoUrls = photoUrls;
     }
 
     [HttpPost]
@@ -64,7 +66,7 @@ public class PhotosController : ControllerBase
         return Ok(new PhotoDto
         {
             PhotoId = photo.PhotoId,
-            Url = photo.FilePath,
+            Url = _photoUrls.Sign(photo.FilePath)!,
             Category = photo.Category,
             SortOrder = photo.SortOrder
         });

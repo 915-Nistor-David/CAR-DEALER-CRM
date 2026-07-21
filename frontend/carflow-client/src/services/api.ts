@@ -1,6 +1,8 @@
 import axios from "axios";
 
-export const API_ORIGIN = "http://localhost:5100";
+// Configurabil la build prin VITE_API_URL (vezi .env.example) — hardcodarea
+// lui localhost facea aplicatia inutilizabila pe orice deploy real.
+export const API_ORIGIN = import.meta.env.VITE_API_URL ?? "http://localhost:5100";
 
 const api = axios.create({ baseURL: `${API_ORIGIN}/api` });
 

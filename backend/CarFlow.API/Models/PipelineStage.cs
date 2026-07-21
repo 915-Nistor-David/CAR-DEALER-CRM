@@ -15,4 +15,7 @@ public class PipelineStage : ITenantEntity
     public string? NotifyRole { get; set; }
     // Marcheaza etapa "gata de vanzare" — folosita ulterior pentru matching-ul clientilor interesati
     public bool IsSaleReady { get; set; }
+    // Marcheaza etapa in care ajunge masina la inregistrarea vanzarii.
+    // Flag, nu nume — etapele pot fi redenumite din /etape.
+    public bool IsSoldStage { get; set; }
 }

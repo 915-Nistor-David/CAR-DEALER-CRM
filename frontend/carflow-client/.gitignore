@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# Configurare locala de mediu (.env.example ramane comis ca sablon)
+.env
+.env.*
+!.env.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

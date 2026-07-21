@@ -17,15 +17,17 @@ public class VehiclesController : ControllerBase
     private readonly AppDbContext _db;
     private readonly ITenantProvider _tenant;
     private readonly IFileStorage _storage;
-    private readonly INotificationService _notifications;
+    private readonly IVehicleStageService _stages;
+    private readonly IPhotoUrlSigner _photoUrls;
 
     public VehiclesController(AppDbContext db, ITenantProvider tenant, IFileStorage storage,
-        INotificationService notifications)
+        IVehicleStageService stages, IPhotoUrlSigner photoUrls)
     {
         _db = db;
         _tenant = tenant;
         _storage = storage;
-        _notifications = notifications;
+        _stages = stages;
+        _photoUrls = photoUrls;
     }
 
     [HttpGet]
@@ -62,7 +64,10 @@ public class VehiclesController : ControllerBase
             .ToListAsync();
 
         foreach (var v in vehicles)
+        {
             v.DaysInStage = Math.Max(0, (int)(DateTime.UtcNow - v.EnteredStageAt).TotalDays);
+            v.MainPhotoUrl = _photoUrls.Sign(v.MainPhotoUrl);
+        }
 
         return Ok(vehicles);
     }
@@ -71,6 +76,7 @@ public class VehiclesController : ControllerBase
     public async Task<IActionResult> GetById(int id)
     {
         var isOwner = User.IsInRole("Owner");
+        var canSeeSale = isOwner || User.IsInRole("Vanzari");
 
         var v = await _db.Vehicles
             .Include(x => x.CurrentStage)
@@ -131,8 +137,8 @@ public class VehiclesController : ControllerBase
             CurrentStageId = v.CurrentStageId,
             CurrentStageName = v.CurrentStage?.Name ?? "",
             CreatedAt = v.CreatedAt,
-            MainPhotoUrl = v.Photos.OrderBy(p => p.SortOrder).ThenBy(p => p.PhotoId)
-                .Select(p => p.FilePath).FirstOrDefault(),
+            MainPhotoUrl = _photoUrls.Sign(v.Photos.OrderBy(p => p.SortOrder).ThenBy(p => p.PhotoId)
+                .Select(p => p.FilePath).FirstOrDefault()),
             TotalCosts = totalCosts,
             IsSold = v.Sale != null,
             EnteredStageAt = enteredStageAt,
@@ -141,7 +147,7 @@ public class VehiclesController : ControllerBase
                 .Select(p => new PhotoDto
                 {
                     PhotoId = p.PhotoId,
-                    Url = p.FilePath,
+                    Url = _photoUrls.Sign(p.FilePath)!,
                     Category = p.Category,
                     SortOrder = p.SortOrder
                 }).ToList(),
@@ -156,7 +162,9 @@ public class VehiclesController : ControllerBase
                 }).ToList(),
             History = history,
             Documents = documents,
-            Sale = v.Sale == null ? null : new SaleInfoDto
+            // Datele comerciale (pret vanzare, cumparator, finantare) sunt vizibile
+            // doar cui are acces si la /api/sales — juniorii vad doar ca e vanduta.
+            Sale = v.Sale == null || !canSeeSale ? null : new SaleInfoDto
             {
                 SaleId = v.Sale.SaleId,
                 SalePrice = v.Sale.SalePrice,
@@ -261,13 +269,18 @@ public class VehiclesController : ControllerBase
         return Ok(new { message = "Mașina a fost ștearsă." });
     }
 
-    // Mutarea intr-o alta etapa — scrie intotdeauna o intrare in istoric
-    // si notifica Ownerul + rolul asociat etapei destinatie (toate rolurile pot muta).
+    // Mutarea intr-o alta etapa — toate rolurile pot muta (cerinta dealerului).
     [HttpPut("{id}/stage")]
     public async Task<IActionResult> ChangeStage(int id, ChangeStageRequest req)
     {
-        var vehicle = await _db.Vehicles.FirstOrDefaultAsync(v => v.VehicleId == id);
+        var vehicle = await _db.Vehicles
+            .Include(v => v.Sale)
+            .FirstOrDefaultAsync(v => v.VehicleId == id);
         if (vehicle == null) return NotFound();
+
+        // O masina vanduta nu se mai plimba prin pipeline — vanzarea ramane inregistrata.
+        if (vehicle.Sale != null)
+            return BadRequest(new { message = "Mașina este vândută și nu mai poate fi mutată între etape." });
 
         var stage = await _db.PipelineStages.FirstOrDefaultAsync(s => s.StageId == req.StageId);
         if (stage == null)
@@ -276,35 +289,9 @@ public class VehiclesController : ControllerBase
         if (vehicle.CurrentStageId == req.StageId)
             return Ok(new { message = "Mașina este deja în această etapă." });
 
-        _db.VehicleStatusHistory.Add(new VehicleStatusHistory
-        {
-            VehicleId = vehicle.VehicleId,
-            FromStageId = vehicle.CurrentStageId,
-            ToStageId = req.StageId,
-            UserId = _tenant.UserId,
-            Note = req.Note
-        });
-        vehicle.CurrentStageId = req.StageId;
-        vehicle.StuckReminderSentAt = null;
-
+        await _stages.MoveAsync(vehicle, stage, req.Note);
         await _db.SaveChangesAsync();
-
-        var moverName = await _db.Users
-            .Where(u => u.UserId == _tenant.UserId)
-            .Select(u => u.Name)
-            .FirstOrDefaultAsync() ?? "Cineva";
-
-        var roles = new List<string> { "Owner" };
-        if (!string.IsNullOrEmpty(stage.NotifyRole))
-            roles.Add(stage.NotifyRole);
-
-        var message = $"{moverName} a mutat {vehicle.Make} {vehicle.Model} ({vehicle.Year}) în etapa „{stage.Name}”.";
-        if (!string.IsNullOrWhiteSpace(req.Note))
-            message += $" Mesaj: „{req.Note}”";
-
-        await _notifications.NotifyRolesAsync(_tenant.DealershipId, roles, "StageMove",
-            $"{vehicle.Make} {vehicle.Model} → {stage.Name}", message,
-            $"/vehicles/{vehicle.VehicleId}", excludeUserId: _tenant.UserId);
+        await _stages.NotifyMovedAsync(vehicle, stage, req.Note);
 
         return Ok(new { message = "Etapa a fost schimbată." });
     }

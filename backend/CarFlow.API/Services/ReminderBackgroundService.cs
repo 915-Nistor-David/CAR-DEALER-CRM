@@ -48,7 +48,9 @@ public class ReminderBackgroundService : BackgroundService
         var notifications = scope.ServiceProvider.GetRequiredService<INotificationService>();
 
         var now = DateTime.UtcNow;
-        var today = DateOnly.FromDateTime(DateTime.Now);
+        // Tot ce se compara cu timestamp-uri stocate trebuie sa fie UTC (regula proiectului);
+        // DateTime.Now ar face fereastra de remindere sa depinda de fusul serverului.
+        var today = DateOnly.FromDateTime(now);
 
         var settings = await db.Dealerships.AsNoTracking()
             .Select(d => new { d.DealershipId, d.DefaultStageAlertDays, d.StockAlertDays })
@@ -61,13 +63,16 @@ public class ReminderBackgroundService : BackgroundService
                         && v.RARReminderSentFor != v.RARDate)
             .ToListAsync(ct);
 
+        // Markerul de deduplicare se seteaza INAINTE de notificare: NotifyRolesAsync
+        // face SaveChangesAsync pe acelasi DbContext, deci marker + notificari se comit
+        // atomic. Invers (ca inainte), un crash intre ele retrimitea tot peste 30 min.
         foreach (var v in rarVehicles)
         {
+            v.RARReminderSentFor = v.RARDate;
             await notifications.NotifyRolesAsync(v.DealershipId, new[] { "Owner", "Junior" }, "RAR",
                 $"RAR: {v.Make} {v.Model}",
                 $"{v.Make} {v.Model} ({v.Year}) are programare RAR pe {v.RARDate:dd.MM.yyyy}.",
                 $"/vehicles/{v.VehicleId}");
-            v.RARReminderSentFor = v.RARDate;
         }
 
         // ===== 2. Acte nebifate cu termen apropiat (sau depasit) =====
@@ -86,11 +91,11 @@ public class ReminderBackgroundService : BackgroundService
             foreach (var d in dueDocs)
             {
                 var vehicleName = vehicleNames.GetValueOrDefault(d.VehicleId, "mașină necunoscută");
+                d.ReminderSent = true;
                 await notifications.NotifyRolesAsync(d.DealershipId, new[] { "Owner" }, "Document",
                     $"Act de rezolvat: {d.Name}",
                     $"Actul „{d.Name}” pentru {vehicleName} are termen {d.DueDate:dd.MM.yyyy}.",
                     $"/vehicles/{d.VehicleId}");
-                d.ReminderSent = true;
             }
         }
 
@@ -121,11 +126,11 @@ public class ReminderBackgroundService : BackgroundService
             if (!string.IsNullOrEmpty(c.StageNotifyRole))
                 roles.Add(c.StageNotifyRole);
 
+            c.Vehicle.StuckReminderSentAt = now;
             await notifications.NotifyRolesAsync(c.Vehicle.DealershipId, roles, "StuckInStage",
                 $"{c.Vehicle.Make} {c.Vehicle.Model} stă de {days} zile în {c.StageName}",
                 $"{c.Vehicle.Make} {c.Vehicle.Model} ({c.Vehicle.Year}) este de {days} zile în etapa „{c.StageName}” (prag: {threshold} zile).",
                 $"/vehicles/{c.Vehicle.VehicleId}");
-            c.Vehicle.StuckReminderSentAt = now;
         }
 
         // ===== 4. Prea veche in stoc (nevanduta) =====
@@ -140,11 +145,11 @@ public class ReminderBackgroundService : BackgroundService
             var days = (int)(now - v.CreatedAt).TotalDays;
             if (days < cfg.StockAlertDays) continue;
 
+            v.StockAgingReminderSentAt = now;
             await notifications.NotifyRolesAsync(v.DealershipId, new[] { "Owner", "Vanzari" }, "StockAging",
                 $"{v.Make} {v.Model} este de {days} zile în stoc",
                 $"{v.Make} {v.Model} ({v.Year}) este nevândută de {days} zile (prag: {cfg.StockAlertDays} zile). Poate merită o repoziționare de preț sau promovare.",
                 $"/vehicles/{v.VehicleId}");
-            v.StockAgingReminderSentAt = now;
         }
 
         // Salveaza markerii de deduplicare ramasi (notificarile se salveaza in NotifyRolesAsync)

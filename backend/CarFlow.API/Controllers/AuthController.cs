@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -14,20 +15,20 @@ namespace CarFlow.API.Controllers;
 [Route("api/auth")]
 public class AuthController : ControllerBase
 {
-    // Nume etapa, rolul notificat la intrarea masinii in etapa, marcaj "gata de vanzare"
-    private static readonly (string Name, string? NotifyRole, bool IsSaleReady)[] DefaultStages =
+    // Nume etapa, rolul notificat la intrarea masinii in etapa, marcaj "gata de vanzare", marcaj "vanduta"
+    private static readonly (string Name, string? NotifyRole, bool IsSaleReady, bool IsSoldStage)[] DefaultStages =
     {
-        ("Cumpărată", null, false),
-        ("Transport", "Junior", false),
-        ("Mecanică", "Junior", false),
-        ("Vopsitorie", "Junior", false),
-        ("Climă", "Junior", false),
-        ("Detailing", "Junior", false),
-        ("Listată", "Vanzari", false),
-        ("Gata de vânzare", "Vanzari", true),
-        ("Vânzare în curs", "Vanzari", false),
-        ("Vândută", null, false),
-        ("Livrată", null, false)
+        ("Cumpărată", null, false, false),
+        ("Transport", "Junior", false, false),
+        ("Mecanică", "Junior", false, false),
+        ("Vopsitorie", "Junior", false, false),
+        ("Climă", "Junior", false, false),
+        ("Detailing", "Junior", false, false),
+        ("Listată", "Vanzari", false, false),
+        ("Gata de vânzare", "Vanzari", true, false),
+        ("Vânzare în curs", "Vanzari", false, false),
+        ("Vândută", null, false, true),
+        ("Livrată", null, false, false)
     };
 
     private readonly AppDbContext _db;
@@ -45,6 +46,10 @@ public class AuthController : ControllerBase
     {
         if (await _db.Users.AnyAsync(u => u.Email == req.Email))
             return BadRequest(new { message = "Există deja un cont cu acest email." });
+
+        // Dealership + owner + etape sunt un tot: fara tranzactie, o eroare la al doilea
+        // save ar lasa un dealership orfan, fara utilizatori si fara etape.
+        await using var tx = await _db.Database.BeginTransactionAsync();
 
         var dealership = new Dealership { Name = req.DealershipName };
         _db.Dealerships.Add(dealership);
@@ -68,11 +73,14 @@ public class AuthController : ControllerBase
                 Name = DefaultStages[i].Name,
                 SortOrder = i + 1,
                 NotifyRole = DefaultStages[i].NotifyRole,
-                IsSaleReady = DefaultStages[i].IsSaleReady
+                IsSaleReady = DefaultStages[i].IsSaleReady,
+                IsSoldStage = DefaultStages[i].IsSoldStage
             });
         }
 
         await _db.SaveChangesAsync();
+        await tx.CommitAsync();
+
         return Ok(BuildAuthResponse(user, dealership.Name));
     }
 
@@ -108,7 +116,8 @@ public class AuthController : ControllerBase
             issuer: _config["Jwt:Issuer"],
             audience: _config["Jwt:Audience"],
             claims: claims,
-            expires: DateTime.UtcNow.AddHours(double.Parse(_config["Jwt:ExpiryHours"] ?? "24")),
+            expires: DateTime.UtcNow.AddHours(
+                double.Parse(_config["Jwt:ExpiryHours"] ?? "24", CultureInfo.InvariantCulture)),
             signingCredentials: new SigningCredentials(key, SecurityAlgorithms.HmacSha256));
 
         return new AuthResponse

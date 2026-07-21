@@ -14,11 +14,13 @@ public class SalesController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly ITenantProvider _tenant;
+    private readonly IVehicleStageService _stages;
 
-    public SalesController(AppDbContext db, ITenantProvider tenant)
+    public SalesController(AppDbContext db, ITenantProvider tenant, IVehicleStageService stages)
     {
         _db = db;
         _tenant = tenant;
+        _stages = stages;
     }
 
     // Inregistreaza vanzarea si muta masina in etapa "Vândută" (daca exista).
@@ -38,6 +40,15 @@ public class SalesController : ControllerBase
         if (vehicle.Sale != null)
             return BadRequest(new { message = "Mașina este deja vândută." });
 
+        // Etapa de "vanduta" e marcata cu un flag, nu cautata dupa nume — altfel
+        // o redenumire din /etape ar rupe mutarea in tacere.
+        var soldStage = await _db.PipelineStages.FirstOrDefaultAsync(s => s.IsSoldStage);
+        if (soldStage == null)
+            return BadRequest(new
+            {
+                message = "Nicio etapă nu este marcată ca „vândută”. Bifează opțiunea la etapa potrivită în pagina Etape."
+            });
+
         var sale = new Sale
         {
             VehicleId = vehicleId,
@@ -51,21 +62,16 @@ public class SalesController : ControllerBase
         };
         _db.Sales.Add(sale);
 
-        var soldStage = await _db.PipelineStages.FirstOrDefaultAsync(s => s.Name == "Vândută");
-        if (soldStage != null && vehicle.CurrentStageId != soldStage.StageId)
-        {
-            _db.VehicleStatusHistory.Add(new VehicleStatusHistory
-            {
-                VehicleId = vehicleId,
-                FromStageId = vehicle.CurrentStageId,
-                ToStageId = soldStage.StageId,
-                UserId = _tenant.UserId,
-                Note = $"Vânzare înregistrată ({req.Type})"
-            });
-            vehicle.CurrentStageId = soldStage.StageId;
-        }
+        var note = $"Vânzare înregistrată ({req.Type})";
+        var moved = vehicle.CurrentStageId != soldStage.StageId;
+        if (moved)
+            await _stages.MoveAsync(vehicle, soldStage, note);
 
         await _db.SaveChangesAsync();
+
+        if (moved)
+            await _stages.NotifyMovedAsync(vehicle, soldStage, note);
+
         return Ok(new { saleId = sale.SaleId });
     }
 

@@ -5,7 +5,7 @@ import { saleService } from "../services/saleService";
 import { documentService } from "../services/documentService";
 import { authService } from "../services/authService";
 import { assetUrl } from "../services/api";
-import { daysLabel, daysUntil, formatDate, formatDateTime, formatKm, formatMoney } from "../utils/format";
+import { daysLabel, daysUntil, formatDate, formatDateTime, formatKm, formatMoney, todayIso } from "../utils/format";
 import VehicleForm from "../components/VehicleForm";
 import { Badge, Button, Card, Input, Select } from "../components/ui";
 import { COST_CATEGORIES, PHOTO_CATEGORIES } from "../types";
@@ -333,7 +333,7 @@ function PhotosSection({ vehicle, onChanged }: { vehicle: VehicleDetailType; onC
 function CostsSection({ vehicle, onChanged }: { vehicle: VehicleDetailType; onChanged: () => void }) {
   const [category, setCategory] = useState<string>("Service");
   const [amount, setAmount] = useState("");
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(todayIso);
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -637,7 +637,7 @@ function SaleForm({ vehicle, onClose, onSaved }: {
 }) {
   const [form, setForm] = useState<CreateSaleRequest>({
     salePrice: 0,
-    saleDate: new Date().toISOString().slice(0, 10),
+    saleDate: todayIso(),
     type: "Cash",
     financingPartner: "",
     financingTerms: "",
@@ -693,7 +693,9 @@ function SaleForm({ vehicle, onClose, onSaved }: {
               <label className={label}>Preț vânzare (€) *</label>
               <Input type="number" required min="0.01" step="0.01"
                 value={form.salePrice || ""}
-                onChange={(e) => setForm((f) => ({ ...f, salePrice: Number(e.target.value) }))} />
+                onChange={(e) => setForm((f) => ({
+                  ...f, salePrice: e.target.value === "" ? 0 : Number(e.target.value),
+                }))} />
             </div>
             <div>
               <label className={label}>Data vânzării *</label>

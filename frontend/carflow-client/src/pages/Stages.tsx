@@ -9,7 +9,9 @@ const NOTIFY_ROLE_OPTIONS = [
   { value: "Junior", label: "Juniori" },
 ];
 
-const emptyForm: SaveStageRequest = { name: "", alertDays: null, notifyRole: null, isSaleReady: false };
+const emptyForm: SaveStageRequest = {
+  name: "", alertDays: null, notifyRole: null, isSaleReady: false, isSoldStage: false,
+};
 
 // Administrarea etapelor pipeline-ului (doar Owner): redenumire, reordonare,
 // praguri de alerta, rolul notificat la intrare, marcaj "gata de vanzare".
@@ -42,6 +44,7 @@ export default function Stages() {
       alertDays: s.alertDays ?? null,
       notifyRole: s.notifyRole ?? null,
       isSaleReady: s.isSaleReady,
+      isSoldStage: s.isSoldStage,
     });
   };
 
@@ -135,6 +138,7 @@ export default function Stages() {
                 <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-ink">
                   {s.name}
                   {s.isSaleReady && <Badge tone="good">gata de vânzare</Badge>}
+                  {s.isSoldStage && <Badge tone="neutral">vândută</Badge>}
                 </p>
                 <p className="mt-0.5 text-xs text-ink-muted">
                   {s.vehicleCount === 1 ? "1 mașină" : `${s.vehicleCount} mașini`} ·
@@ -195,6 +199,11 @@ function StageForm({ title, form, setForm, onSubmit, onCancel }: {
           <input type="checkbox" checked={form.isSaleReady}
             onChange={(e) => setForm((f) => ({ ...f, isSaleReady: e.target.checked }))} />
           Etapa „gata de vânzare” (folosită pentru potrivirea clienților interesați)
+        </label>
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-ink-secondary">
+          <input type="checkbox" checked={form.isSoldStage}
+            onChange={(e) => setForm((f) => ({ ...f, isSoldStage: e.target.checked }))} />
+          Etapa „vândută” (aici ajunge mașina la înregistrarea vânzării)
         </label>
         <div className="flex justify-end gap-2">
           <Button type="button" variant="secondary" onClick={onCancel} className="px-3 py-1.5">Anulează</Button>

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { vehicleService } from "../services/vehicleService";
 import { authService } from "../services/authService";
 import { Button, Input } from "./ui";
-import type { SaveVehicleRequest, Vehicle } from "../types";
+import type { SaveVehicleRequest, Vehicle, VehicleFormState } from "../types";
 
 interface Props {
   initial?: Vehicle | null;
@@ -16,13 +16,13 @@ export default function VehicleForm({ initial, onClose, onSaved }: Props) {
   // Non-Owner nu vede pretul de achizitie — campul e ascuns, iar backend-ul
   // ignora oricum valoarea la update-urile venite de la non-Owner.
   const isOwner = authService.isOwner();
-  const [form, setForm] = useState<SaveVehicleRequest>({
+  const [form, setForm] = useState<VehicleFormState>({
     vin: initial?.vin ?? "",
     make: initial?.make ?? "",
     model: initial?.model ?? "",
     year: initial?.year ?? new Date().getFullYear(),
     km: initial?.km ?? 0,
-    purchasePrice: initial?.purchasePrice ?? 0,
+    purchasePrice: initial?.purchasePrice ?? null,
     rarDate: initial?.rarDate ?? "",
     acquisitionSource: initial?.acquisitionSource ?? "",
     description: initial?.description ?? "",
@@ -30,16 +30,30 @@ export default function VehicleForm({ initial, onClose, onSaved }: Props) {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const set = (field: keyof SaveVehicleRequest, value: string | number) =>
+  const set = (field: keyof VehicleFormState, value: string | number | null) =>
     setForm((f) => ({ ...f, [field]: value }));
+
+  // Camp numeric golit => null, nu 0. Altfel stergerea pretului ca sa-l rescrii
+  // il salva tacit ca 0 si umfla profitul masinii peste tot.
+  const setNumber = (field: "year" | "km" | "purchasePrice", raw: string) =>
+    set(field, raw === "" ? null : Number(raw));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    if (form.year == null) return setError("Anul de fabricație este obligatoriu.");
+    if (isOwner && form.purchasePrice == null)
+      return setError("Prețul de achiziție este obligatoriu.");
+
     setSaving(true);
     try {
       const payload: SaveVehicleRequest = {
         ...form,
+        year: form.year,
+        km: form.km ?? 0,
+        // Non-Owner nu vede si nu trimite pretul; backend-ul ignora oricum valoarea.
+        purchasePrice: form.purchasePrice ?? 0,
         vin: form.vin || null,
         rarDate: form.rarDate || null,
         acquisitionSource: form.acquisitionSource || null,
@@ -95,21 +109,21 @@ export default function VehicleForm({ initial, onClose, onSaved }: Props) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={label}>An fabricație *</label>
-              <Input type="number" required min={1950} max={2100} value={form.year}
-                onChange={(e) => set("year", Number(e.target.value))} />
+              <Input type="number" required min={1950} max={2100} value={form.year ?? ""}
+                onChange={(e) => setNumber("year", e.target.value)} />
             </div>
             <div>
               <label className={label}>Kilometraj</label>
-              <Input type="number" min={0} value={form.km}
-                onChange={(e) => set("km", Number(e.target.value))} />
+              <Input type="number" min={0} value={form.km ?? ""}
+                onChange={(e) => setNumber("km", e.target.value)} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             {isOwner && (
               <div>
                 <label className={label}>Preț achiziție (€) *</label>
-                <Input type="number" required min={0} step="0.01" value={form.purchasePrice}
-                  onChange={(e) => set("purchasePrice", Number(e.target.value))} />
+                <Input type="number" required min={0} step="0.01" value={form.purchasePrice ?? ""}
+                  onChange={(e) => setNumber("purchasePrice", e.target.value)} />
               </div>
             )}
             <div className={isOwner ? "" : "col-span-2"}>

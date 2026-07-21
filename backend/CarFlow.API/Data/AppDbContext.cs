@@ -90,6 +90,17 @@ public class AppDbContext : DbContext
             .HasForeignKey(d => d.VehicleId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        // DealershipId apare in predicatul FIECAREI interogari de tenant (vezi filtrele
+        // globale de mai jos), deci merita indexat peste tot.
+        mb.Entity<PipelineStage>().HasIndex(e => e.DealershipId);
+        mb.Entity<Vehicle>().HasIndex(e => e.DealershipId);
+        mb.Entity<VehicleStatusHistory>().HasIndex(e => e.DealershipId);
+        mb.Entity<VehicleCost>().HasIndex(e => e.DealershipId);
+        mb.Entity<VehiclePhoto>().HasIndex(e => e.DealershipId);
+        mb.Entity<Sale>().HasIndex(e => e.DealershipId);
+        mb.Entity<Notification>().HasIndex(e => e.DealershipId);
+        mb.Entity<VehicleDocument>().HasIndex(e => e.DealershipId);
+
         // ===== Izolare multi-tenant: filtru global pe fiecare entitate de tenant =====
         // _tenant.DealershipId este evaluat per-request (DbContext e scoped),
         // deci un dealer nu poate vedea NICIODATA datele altuia.
@@ -105,13 +116,38 @@ public class AppDbContext : DbContext
 
     // Stampam automat DealershipId pe orice insert de entitate de tenant,
     // ca sa nu poata fi uitat (sau falsificat) in controllere.
-    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    // Suprascriem supraincarcarea catre care delega TOATE caile (inclusiv
+    // SaveChangesAsync(ct)), plus varianta sincrona — altfel un apel pe alta
+    // cale ar scrie randuri cu DealershipId = 0.
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess,
+        CancellationToken cancellationToken = default)
     {
-        foreach (var entry in ChangeTracker.Entries<ITenantEntity>())
-        {
-            if (entry.State == EntityState.Added && entry.Entity.DealershipId == 0)
-                entry.Entity.DealershipId = _tenant.DealershipId;
-        }
-        return base.SaveChangesAsync(cancellationToken);
+        StampTenant();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        StampTenant();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    private void StampTenant()
+    {
+        var pending = ChangeTracker.Entries<ITenantEntity>()
+            .Where(e => e.State == EntityState.Added && e.Entity.DealershipId == 0)
+            .ToList();
+
+        if (pending.Count == 0) return;
+
+        // Nu exista FK spre Dealerships, deci un insert cu 0 ar reusi si ar produce
+        // randuri orfane, invizibile pentru orice tenant. Mai bine esuam zgomotos.
+        if (_tenant.DealershipId == 0)
+            throw new InvalidOperationException(
+                $"Încercare de a salva {pending.Count} entități de tenant fără DealershipId. " +
+                "Serviciile care rulează în afara unui request HTTP trebuie să seteze DealershipId explicit.");
+
+        foreach (var entry in pending)
+            entry.Entity.DealershipId = _tenant.DealershipId;
     }
 }

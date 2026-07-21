@@ -15,6 +15,7 @@ export interface Stage {
   alertDays?: number | null;
   notifyRole?: string | null;
   isSaleReady: boolean;
+  isSoldStage: boolean;
   vehicleCount: number;
 }
 
@@ -23,6 +24,7 @@ export interface SaveStageRequest {
   alertDays?: number | null;
   notifyRole?: string | null;
   isSaleReady: boolean;
+  isSoldStage: boolean;
 }
 
 export interface Vehicle {
@@ -120,6 +122,14 @@ export interface SaveVehicleRequest {
   description?: string | null;
 }
 
+// Starea formularelor permite camp gol (null) ca stergerea unei valori numerice
+// sa nu devina 0 tacit; se valideaza la submit.
+export interface VehicleFormState extends Omit<SaveVehicleRequest, "year" | "km" | "purchasePrice"> {
+  year: number | null;
+  km: number | null;
+  purchasePrice: number | null;
+}
+
 export interface CreateSaleRequest {
   salePrice: number;
   saleDate: string;
@@ -186,6 +196,8 @@ export interface DealerSettings {
 }
 
 export interface StageMoveCount {
+  // Etapele sterse au toate acelasi nume generic — cheia unica e stageId
+  stageId: number;
   stageName: string;
   count: number;
 }
