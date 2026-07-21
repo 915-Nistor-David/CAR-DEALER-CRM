@@ -15,12 +15,15 @@ public class SalesController : ControllerBase
     private readonly AppDbContext _db;
     private readonly ITenantProvider _tenant;
     private readonly IVehicleStageService _stages;
+    private readonly INotificationService _notifications;
 
-    public SalesController(AppDbContext db, ITenantProvider tenant, IVehicleStageService stages)
+    public SalesController(AppDbContext db, ITenantProvider tenant, IVehicleStageService stages,
+        INotificationService notifications)
     {
         _db = db;
         _tenant = tenant;
         _stages = stages;
+        _notifications = notifications;
     }
 
     // Inregistreaza vanzarea si muta masina in etapa "Vândută" (daca exista).
@@ -72,7 +75,37 @@ public class SalesController : ControllerBase
         if (moved)
             await _stages.NotifyMovedAsync(vehicle, soldStage, note);
 
+        await NotifySaleAsync(vehicle, sale);
+
         return Ok(new { saleId = sale.SaleId });
+    }
+
+    // Vanzarea e evenimentul cel mai important din sistem, deci are notificare proprie —
+    // nu doar ecoul generic de mutare de etapa, care in plus il excludea pe autor
+    // (la un dealer cu un singur patron nu se trimitea nimic) si nu continea nicio cifra.
+    // Aici NU excludem autorul: patronul vrea confirmarea, e un eveniment financiar.
+    private async Task NotifySaleAsync(Vehicle vehicle, Sale sale)
+    {
+        var vehicleName = $"{vehicle.Make} {vehicle.Model} ({vehicle.Year})";
+        var title = $"Vândută: {vehicle.Make} {vehicle.Model} — {sale.SalePrice:N0} €";
+        var link = $"/vehicles/{vehicle.VehicleId}";
+
+        var payment = sale.Type == "Finantat"
+            ? $"finanțat prin {sale.FinancingPartner}"
+            : "cash";
+        var common = $"{vehicleName} s-a vândut cu {sale.SalePrice:N0} € ({payment}) către {sale.BuyerName}.";
+
+        // Profitul deconspira pretul de achizitie, deci merge doar catre Owner.
+        var totalCosts = await _db.VehicleCosts
+            .Where(c => c.VehicleId == vehicle.VehicleId)
+            .SumAsync(c => (decimal?)c.Amount) ?? 0;
+        var profit = sale.SalePrice - vehicle.PurchasePrice - totalCosts;
+
+        await _notifications.NotifyRolesAsync(_tenant.DealershipId, new[] { "Owner" },
+            NotificationTypes.Sale, title, $"{common} Profit: {profit:N0} €.", link);
+
+        await _notifications.NotifyRolesAsync(_tenant.DealershipId, new[] { "Vanzari" },
+            NotificationTypes.Sale, title, common, link, excludeUserId: _tenant.UserId);
     }
 
     [HttpGet("api/sales")]

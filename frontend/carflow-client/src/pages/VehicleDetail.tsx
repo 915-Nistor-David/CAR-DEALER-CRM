@@ -105,7 +105,10 @@ export default function VehicleDetail() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Coloana principala */}
-        <div className="space-y-6 lg:col-span-2">
+        {/* min-w-0: un element de grid are implicit min-width:auto si s-ar latí
+            ca sa incapa continutul — banda de poze n-ar mai derula niciodata,
+            iar pagina ar capata scroll orizontal. */}
+        <div className="min-w-0 space-y-6 lg:col-span-2">
           <PhotosSection vehicle={vehicle} onChanged={load} />
           <CostsSection vehicle={vehicle} onChanged={load} />
           <DocumentsSection vehicle={vehicle} onChanged={load} />
@@ -292,7 +295,8 @@ function PhotosSection({ vehicle, onChanged }: { vehicle: VehicleDetailType; onC
           Fotografii <span className="font-normal text-ink-muted">({vehicle.photos.length})</span>
         </h2>
         <div className="flex items-center gap-2">
-          <Select value={category} onChange={(e) => setCategory(e.target.value)} className="w-auto">
+          <Select value={category} onChange={(e) => setCategory(e.target.value)} className="w-auto"
+            title="Categoria în care se încarcă poza">
             {PHOTO_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
           </Select>
           <Button onClick={() => fileRef.current?.click()} disabled={uploading} className="px-3 py-2">
@@ -308,25 +312,86 @@ function PhotosSection({ vehicle, onChanged }: { vehicle: VehicleDetailType; onC
           Nicio fotografie încă. Ordinea recomandată: exterior, interior, defecte.
         </p>
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {vehicle.photos.map((p) => (
-            <div key={p.photoId} className="group relative">
+        // Grupate pe categorie: la 25 de poze o singura gramada e inutilizabila.
+        <div className="space-y-4">
+          {PHOTO_CATEGORIES.map((c) => {
+            const photos = vehicle.photos.filter((p) => p.category === c);
+            if (photos.length === 0) return null;
+            return <PhotoStrip key={c} category={c} photos={photos} onDelete={handleDelete} />;
+          })}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+// Banda orizontala derulanta, cu sageti care apar doar cand e ceva de derulat.
+function PhotoStrip({ category, photos, onDelete }: {
+  category: string;
+  photos: VehicleDetailType["photos"];
+  onDelete: (photoId: number) => void;
+}) {
+  const stripRef = useRef<HTMLDivElement>(null);
+  const [canScroll, setCanScroll] = useState({ left: false, right: false });
+
+  const updateArrows = () => {
+    const el = stripRef.current;
+    if (!el) return;
+    setCanScroll({
+      left: el.scrollLeft > 4,
+      right: el.scrollLeft + el.clientWidth < el.scrollWidth - 4,
+    });
+  };
+
+  useEffect(() => {
+    updateArrows();
+    const el = stripRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(updateArrows);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [photos.length]);
+
+  const scrollBy = (direction: -1 | 1) => {
+    const el = stripRef.current;
+    if (!el) return;
+    el.scrollBy({ left: direction * el.clientWidth * 0.8, behavior: "smooth" });
+  };
+
+  const arrowClass =
+    "absolute top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full " +
+    "border border-border bg-surface/95 text-ink shadow-md hover:bg-surface-hover";
+
+  return (
+    <div>
+      <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-muted">
+        {category} <span className="font-normal normal-case">({photos.length})</span>
+      </p>
+      <div className="relative">
+        {canScroll.left && (
+          <button onClick={() => scrollBy(-1)} className={`${arrowClass} left-1`} aria-label="Derulează stânga">‹</button>
+        )}
+        <div ref={stripRef} onScroll={updateArrows}
+          className="flex snap-x gap-3 overflow-x-auto scroll-smooth pb-1">
+          {photos.map((p) => (
+            <div key={p.photoId} className="relative w-40 shrink-0 snap-start">
               <a href={assetUrl(p.url)} target="_blank" rel="noreferrer">
-                <img src={assetUrl(p.url)} alt={p.category}
-                  className="h-32 w-full rounded-lg object-cover" />
+                <img src={assetUrl(p.url)} alt={p.category} className="h-28 w-40 rounded-lg object-cover" />
               </a>
-              <span className="absolute bottom-1.5 left-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[11px] text-white">
-                {p.category}
-              </span>
-              <button onClick={() => handleDelete(p.photoId)}
-                className="absolute right-1.5 top-1.5 hidden rounded-full bg-black/60 px-2 py-0.5 text-xs text-white hover:bg-critical group-hover:block">
+              {/* Mereu vizibil: pe telefon/tableta (dispozitivele de la service) nu exista hover. */}
+              <button onClick={() => onDelete(p.photoId)}
+                className="absolute right-1.5 top-1.5 rounded-full bg-black/60 px-2 py-0.5 text-xs text-white hover:bg-critical"
+                aria-label="Șterge fotografia">
                 ✕
               </button>
             </div>
           ))}
         </div>
-      )}
-    </Card>
+        {canScroll.right && (
+          <button onClick={() => scrollBy(1)} className={`${arrowClass} right-1`} aria-label="Derulează dreapta">›</button>
+        )}
+      </div>
+    </div>
   );
 }
 

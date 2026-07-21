@@ -62,7 +62,7 @@ public class VehicleStageService : IVehicleStageService
         if (!string.IsNullOrWhiteSpace(note))
             message += $" Mesaj: „{note}”";
 
-        await _notifications.NotifyRolesAsync(_tenant.DealershipId, roles, "StageMove",
+        await _notifications.NotifyRolesAsync(_tenant.DealershipId, roles, NotificationTypes.StageMove,
             $"{vehicle.Make} {vehicle.Model} → {toStage.Name}", message,
             $"/vehicles/{vehicle.VehicleId}", excludeUserId: _tenant.UserId);
     }

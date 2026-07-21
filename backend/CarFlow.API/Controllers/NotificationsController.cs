@@ -10,6 +10,8 @@ public class NotificationDto
 {
     public int NotificationId { get; set; }
     public string Type { get; set; } = string.Empty;
+    // Derivata din Type — clientul nu trebuie sa stie maparea
+    public string Category { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public string Message { get; set; } = string.Empty;
     public string? LinkUrl { get; set; }
@@ -22,6 +24,9 @@ public class NotificationDto
 [Authorize]
 public class NotificationsController : ControllerBase
 {
+    private const int DefaultPageSize = 30;
+    private const int MaxPageSize = 100;
+
     private readonly AppDbContext _db;
     private readonly ITenantProvider _tenant;
 
@@ -31,16 +36,62 @@ public class NotificationsController : ControllerBase
         _tenant = tenant;
     }
 
-    // Ultimele 50 de notificari ale utilizatorului curent + numarul de necitite.
+    // Notificarile utilizatorului curent, cu filtrare pe categorie/tip/necitite
+    // si paginare. Contoarele per categorie vin mereu pe TOATE notificarile,
+    // nu doar pe pagina curenta — asa taburile pot afisa cate necitite au.
     [HttpGet]
-    public async Task<IActionResult> GetMine()
+    public async Task<IActionResult> GetMine(
+        [FromQuery] string? category,
+        [FromQuery] string? type,
+        [FromQuery] bool unreadOnly = false,
+        [FromQuery] DateOnly? from = null,
+        [FromQuery] DateOnly? to = null,
+        [FromQuery] int skip = 0,
+        [FromQuery] int take = DefaultPageSize)
     {
-        var baseQuery = _db.Notifications.Where(n => n.UserId == _tenant.UserId);
+        if (category != null && !NotificationCategories.IsValid(category))
+            return BadRequest(new { message = "Categorie invalidă." });
 
-        var unreadCount = await baseQuery.CountAsync(n => !n.IsRead);
-        var items = await baseQuery
+        take = Math.Clamp(take, 1, MaxPageSize);
+        skip = Math.Max(0, skip);
+
+        var mine = _db.Notifications.Where(n => n.UserId == _tenant.UserId);
+
+        var unreadCount = await mine.CountAsync(n => !n.IsRead);
+        var unreadByCategory = NotificationCategories.All.ToDictionary(
+            c => c,
+            c =>
+            {
+                var types = NotificationCategories.TypesIn(c);
+                return mine.Count(n => !n.IsRead && types.Contains(n.Type));
+            });
+
+        var filtered = mine;
+        if (category != null)
+        {
+            var types = NotificationCategories.TypesIn(category);
+            filtered = filtered.Where(n => types.Contains(n.Type));
+        }
+        if (!string.IsNullOrEmpty(type))
+            filtered = filtered.Where(n => n.Type == type);
+        if (unreadOnly)
+            filtered = filtered.Where(n => !n.IsRead);
+        if (from != null)
+        {
+            var fromUtc = DateTime.SpecifyKind(from.Value.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
+            filtered = filtered.Where(n => n.CreatedAt >= fromUtc);
+        }
+        if (to != null)
+        {
+            var toUtc = DateTime.SpecifyKind(to.Value.AddDays(1).ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
+            filtered = filtered.Where(n => n.CreatedAt < toUtc);
+        }
+
+        var total = await filtered.CountAsync();
+        var items = await filtered
             .OrderByDescending(n => n.CreatedAt)
-            .Take(50)
+            .Skip(skip)
+            .Take(take)
             .Select(n => new NotificationDto
             {
                 NotificationId = n.NotificationId,
@@ -53,7 +104,11 @@ public class NotificationsController : ControllerBase
             })
             .ToListAsync();
 
-        return Ok(new { unreadCount, items });
+        // Maparea tip -> categorie e in memorie (dictionar), nu poate rula in SQL.
+        foreach (var i in items)
+            i.Category = NotificationCategories.For(i.Type);
+
+        return Ok(new { unreadCount, unreadByCategory, total, items });
     }
 
     [HttpPut("{id}/read")]
@@ -68,13 +123,21 @@ public class NotificationsController : ControllerBase
         return Ok(new { message = "Notificare citită." });
     }
 
+    // Fara categorie: marcheaza tot. Cu categorie: doar tabul curent.
     [HttpPut("read-all")]
-    public async Task<IActionResult> MarkAllRead()
+    public async Task<IActionResult> MarkAllRead([FromQuery] string? category)
     {
-        await _db.Notifications
-            .Where(n => n.UserId == _tenant.UserId && !n.IsRead)
-            .ExecuteUpdateAsync(s => s.SetProperty(n => n.IsRead, true));
+        if (category != null && !NotificationCategories.IsValid(category))
+            return BadRequest(new { message = "Categorie invalidă." });
 
-        return Ok(new { message = "Toate notificările au fost marcate ca citite." });
+        var query = _db.Notifications.Where(n => n.UserId == _tenant.UserId && !n.IsRead);
+        if (category != null)
+        {
+            var types = NotificationCategories.TypesIn(category);
+            query = query.Where(n => types.Contains(n.Type));
+        }
+
+        await query.ExecuteUpdateAsync(s => s.SetProperty(n => n.IsRead, true));
+        return Ok(new { message = "Notificările au fost marcate ca citite." });
     }
 }

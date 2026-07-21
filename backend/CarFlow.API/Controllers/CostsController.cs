@@ -1,3 +1,4 @@
+using CarFlow.API.Common;
 using CarFlow.API.Costs;
 using CarFlow.API.Data;
 using CarFlow.API.Models;
@@ -17,10 +18,14 @@ public class CostsController : ControllerBase
         { "Transport", "Service", "Piese", "Detailing", "Altele" };
 
     private readonly AppDbContext _db;
+    private readonly ITenantProvider _tenant;
+    private readonly INotificationService _notifications;
 
-    public CostsController(AppDbContext db)
+    public CostsController(AppDbContext db, ITenantProvider tenant, INotificationService notifications)
     {
         _db = db;
+        _tenant = tenant;
+        _notifications = notifications;
     }
 
     [HttpPost]
@@ -29,8 +34,8 @@ public class CostsController : ControllerBase
         if (!AllowedCategories.Contains(req.Category))
             return BadRequest(new { message = "Categorie invalidă." });
 
-        var vehicleExists = await _db.Vehicles.AnyAsync(v => v.VehicleId == vehicleId);
-        if (!vehicleExists) return NotFound();
+        var vehicle = await _db.Vehicles.FirstOrDefaultAsync(v => v.VehicleId == vehicleId);
+        if (vehicle == null) return NotFound();
 
         var cost = new VehicleCost
         {
@@ -42,6 +47,8 @@ public class CostsController : ControllerBase
         };
         _db.VehicleCosts.Add(cost);
         await _db.SaveChangesAsync();
+
+        await NotifyOwnerAsync(vehicle, cost, added: true);
 
         return Ok(new CostDto
         {
@@ -60,8 +67,39 @@ public class CostsController : ControllerBase
             .FirstOrDefaultAsync(c => c.CostId == costId && c.VehicleId == vehicleId);
         if (cost == null) return NotFound();
 
+        var vehicle = await _db.Vehicles.FirstOrDefaultAsync(v => v.VehicleId == vehicleId);
+
         _db.VehicleCosts.Remove(cost);
         await _db.SaveChangesAsync();
+
+        if (vehicle != null)
+            await NotifyOwnerAsync(vehicle, cost, added: false);
+
         return Ok(new { message = "Costul a fost șters." });
+    }
+
+    // Patronul cere explicit sa afle cand cineva cheltuie pe o masina.
+    // Stergerea e la fel de sensibila ca adaugarea, deci notifica si ea.
+    // Excludem autorul: patronul nu are ce afla de la propriile costuri.
+    private async Task NotifyOwnerAsync(Vehicle vehicle, VehicleCost cost, bool added)
+    {
+        var actor = await _db.Users
+            .Where(u => u.UserId == _tenant.UserId)
+            .Select(u => u.Name)
+            .FirstOrDefaultAsync() ?? "Cineva";
+
+        var verb = added ? "a adăugat" : "a șters";
+        var prefix = added ? "Cost nou" : "Cost șters";
+        var description = string.IsNullOrWhiteSpace(cost.Description)
+            ? ""
+            : $" — „{cost.Description}”";
+
+        await _notifications.NotifyRolesAsync(_tenant.DealershipId, new[] { "Owner" },
+            NotificationTypes.Cost,
+            $"{prefix}: {cost.Amount:N0} € · {vehicle.Make} {vehicle.Model}",
+            $"{actor} {verb} un cost de {cost.Amount:N0} € la categoria {cost.Category} " +
+            $"pentru {vehicle.Make} {vehicle.Model} ({vehicle.Year}){description}.",
+            $"/vehicles/{vehicle.VehicleId}",
+            excludeUserId: _tenant.UserId);
     }
 }

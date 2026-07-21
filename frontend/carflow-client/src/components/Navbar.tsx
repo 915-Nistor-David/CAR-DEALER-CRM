@@ -42,6 +42,7 @@ export default function Navbar() {
               <NavLink to="/dashboard" className={linkClass}>Dashboard</NavLink>
               <NavLink to="/board" className={linkClass}>Board</NavLink>
               <NavLink to="/vehicles" className={linkClass}>Mașini</NavLink>
+              <NavLink to="/agenda" className={linkClass}>Agendă</NavLink>
               {authService.hasRole("Owner", "Vanzari") && (
                 <NavLink to="/sales" className={linkClass}>Vânzări</NavLink>
               )}

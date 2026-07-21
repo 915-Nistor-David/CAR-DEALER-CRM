@@ -10,7 +10,8 @@ namespace CarFlow.API.Services;
 public class ReminderBackgroundService : BackgroundService
 {
     private static readonly TimeSpan Interval = TimeSpan.FromMinutes(30);
-    private const int ReminderWindowDays = 3; // cu cate zile inainte anuntam RAR/termene acte
+    // Pragurile stau in AlertRules, partajate cu AgendaController.
+    private const int ReminderWindowDays = AlertRules.ReminderWindowDays;
 
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<ReminderBackgroundService> _logger;
@@ -69,7 +70,7 @@ public class ReminderBackgroundService : BackgroundService
         foreach (var v in rarVehicles)
         {
             v.RARReminderSentFor = v.RARDate;
-            await notifications.NotifyRolesAsync(v.DealershipId, new[] { "Owner", "Junior" }, "RAR",
+            await notifications.NotifyRolesAsync(v.DealershipId, new[] { "Owner", "Junior" }, NotificationTypes.RAR,
                 $"RAR: {v.Make} {v.Model}",
                 $"{v.Make} {v.Model} ({v.Year}) are programare RAR pe {v.RARDate:dd.MM.yyyy}.",
                 $"/vehicles/{v.VehicleId}");
@@ -92,7 +93,7 @@ public class ReminderBackgroundService : BackgroundService
             {
                 var vehicleName = vehicleNames.GetValueOrDefault(d.VehicleId, "mașină necunoscută");
                 d.ReminderSent = true;
-                await notifications.NotifyRolesAsync(d.DealershipId, new[] { "Owner" }, "Document",
+                await notifications.NotifyRolesAsync(d.DealershipId, new[] { "Owner" }, NotificationTypes.Document,
                     $"Act de rezolvat: {d.Name}",
                     $"Actul „{d.Name}” pentru {vehicleName} are termen {d.DueDate:dd.MM.yyyy}.",
                     $"/vehicles/{d.VehicleId}");
@@ -119,7 +120,7 @@ public class ReminderBackgroundService : BackgroundService
             if (!settings.TryGetValue(c.Vehicle.DealershipId, out var cfg)) continue;
 
             var threshold = c.StageAlertDays ?? cfg.DefaultStageAlertDays;
-            var days = (int)(now - c.EnteredStageAt).TotalDays;
+            var days = AlertRules.DaysSince(c.EnteredStageAt, now);
             if (days < threshold) continue;
 
             var roles = new List<string> { "Owner" };
@@ -127,7 +128,7 @@ public class ReminderBackgroundService : BackgroundService
                 roles.Add(c.StageNotifyRole);
 
             c.Vehicle.StuckReminderSentAt = now;
-            await notifications.NotifyRolesAsync(c.Vehicle.DealershipId, roles, "StuckInStage",
+            await notifications.NotifyRolesAsync(c.Vehicle.DealershipId, roles, NotificationTypes.StuckInStage,
                 $"{c.Vehicle.Make} {c.Vehicle.Model} stă de {days} zile în {c.StageName}",
                 $"{c.Vehicle.Make} {c.Vehicle.Model} ({c.Vehicle.Year}) este de {days} zile în etapa „{c.StageName}” (prag: {threshold} zile).",
                 $"/vehicles/{c.Vehicle.VehicleId}");
@@ -142,11 +143,11 @@ public class ReminderBackgroundService : BackgroundService
         {
             if (!settings.TryGetValue(v.DealershipId, out var cfg)) continue;
 
-            var days = (int)(now - v.CreatedAt).TotalDays;
+            var days = AlertRules.DaysSince(v.CreatedAt, now);
             if (days < cfg.StockAlertDays) continue;
 
             v.StockAgingReminderSentAt = now;
-            await notifications.NotifyRolesAsync(v.DealershipId, new[] { "Owner", "Vanzari" }, "StockAging",
+            await notifications.NotifyRolesAsync(v.DealershipId, new[] { "Owner", "Vanzari" }, NotificationTypes.StockAging,
                 $"{v.Make} {v.Model} este de {days} zile în stoc",
                 $"{v.Make} {v.Model} ({v.Year}) este nevândută de {days} zile (prag: {cfg.StockAlertDays} zile). Poate merită o repoziționare de preț sau promovare.",
                 $"/vehicles/{v.VehicleId}");

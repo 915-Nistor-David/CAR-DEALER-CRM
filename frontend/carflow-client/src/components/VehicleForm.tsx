@@ -21,7 +21,9 @@ export default function VehicleForm({ initial, onClose, onSaved }: Props) {
     make: initial?.make ?? "",
     model: initial?.model ?? "",
     year: initial?.year ?? new Date().getFullYear(),
-    km: initial?.km ?? 0,
+    // null, nu 0 — un 0 pre-completat obliga utilizatorul sa selecteze si sa stearga,
+    // iar daca nu o face scrie in continuarea lui (5 -> 05000).
+    km: initial?.km ?? null,
     purchasePrice: initial?.purchasePrice ?? null,
     rarDate: initial?.rarDate ?? "",
     acquisitionSource: initial?.acquisitionSource ?? "",
@@ -43,6 +45,7 @@ export default function VehicleForm({ initial, onClose, onSaved }: Props) {
     setError("");
 
     if (form.year == null) return setError("Anul de fabricație este obligatoriu.");
+    if (form.km == null) return setError("Kilometrajul este obligatoriu.");
     if (isOwner && form.purchasePrice == null)
       return setError("Prețul de achiziție este obligatoriu.");
 
@@ -113,9 +116,9 @@ export default function VehicleForm({ initial, onClose, onSaved }: Props) {
                 onChange={(e) => setNumber("year", e.target.value)} />
             </div>
             <div>
-              <label className={label}>Kilometraj</label>
-              <Input type="number" min={0} value={form.km ?? ""}
-                onChange={(e) => setNumber("km", e.target.value)} />
+              <label className={label}>Kilometraj *</label>
+              <Input type="number" required min={0} value={form.km ?? ""}
+                onChange={(e) => setNumber("km", e.target.value)} placeholder="132000" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">

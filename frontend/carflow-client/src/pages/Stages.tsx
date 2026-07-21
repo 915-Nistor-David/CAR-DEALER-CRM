@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { stageService } from "../services/stageService";
 import { Badge, Button, Card, Input, Select } from "../components/ui";
 import type { DealerSettings, SaveStageRequest, Stage } from "../types";
@@ -22,6 +22,16 @@ export default function Stages() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<SaveStageRequest>(emptyForm);
   const [adding, setAdding] = useState(false);
+  const formRef = useRef<HTMLDivElement>(null);
+
+  // Formularul se randeaza deasupra listei — fara asta, dai "Editează" pe o etapa
+  // de jos si nu se intampla nimic vizibil (formularul apare in afara ecranului).
+  const scrollToForm = () => {
+    requestAnimationFrame(() => {
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      formRef.current?.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
+    });
+  };
 
   const load = async () => {
     try {
@@ -46,12 +56,14 @@ export default function Stages() {
       isSaleReady: s.isSaleReady,
       isSoldStage: s.isSoldStage,
     });
+    scrollToForm();
   };
 
   const startAdd = () => {
     setEditingId(null);
     setForm(emptyForm);
     setAdding(true);
+    scrollToForm();
   };
 
   const cancelForm = () => {
@@ -116,13 +128,15 @@ export default function Stages() {
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-2 lg:col-span-2">
           {(adding || editingId != null) && (
-            <StageForm
-              title={adding ? "Etapă nouă" : "Editează etapa"}
-              form={form}
-              setForm={setForm}
-              onSubmit={handleSave}
-              onCancel={cancelForm}
-            />
+            <div ref={formRef} className="scroll-mt-20">
+              <StageForm
+                title={adding ? "Etapă nouă" : "Editează etapa"}
+                form={form}
+                setForm={setForm}
+                onSubmit={handleSave}
+                onCancel={cancelForm}
+              />
+            </div>
           )}
 
           {stages.map((s, i) => (

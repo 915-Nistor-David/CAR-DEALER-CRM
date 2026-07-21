@@ -162,6 +162,8 @@ export interface SaleListItem {
 export interface AppNotification {
   notificationId: number;
   type: string;
+  // Derivata pe backend din type: Pipeline | Bani | Urgente
+  category: string;
   title: string;
   message: string;
   linkUrl?: string | null;
@@ -171,7 +173,50 @@ export interface AppNotification {
 
 export interface NotificationsResponse {
   unreadCount: number;
+  unreadByCategory: Record<string, number>;
+  total: number;
   items: AppNotification[];
+}
+
+export interface NotificationQuery {
+  category?: string | null;
+  type?: string | null;
+  unreadOnly?: boolean;
+  from?: string | null;
+  to?: string | null;
+  skip?: number;
+  take?: number;
+}
+
+// Trebuie sa ramana identice cu NotificationCategories/NotificationTypes din backend
+export const NOTIFICATION_CATEGORIES = ["Pipeline", "Bani", "Urgente"] as const;
+
+export const NOTIFICATION_TYPE_LABELS: Record<string, string> = {
+  StageMove: "Mutare etapă",
+  Sale: "Vânzare",
+  Cost: "Cost",
+  StuckInStage: "Blocată în etapă",
+  StockAging: "Prea mult în stoc",
+  RAR: "RAR",
+  Document: "Act",
+};
+
+export interface AgendaEntry {
+  // RAR | Document | StuckInStage | StockAging
+  kind: string;
+  date: string;
+  title: string;
+  detail?: string | null;
+  vehicleId: number;
+  vehicleName: string;
+  isOverdue: boolean;
+}
+
+export interface AgendaResponse {
+  from: string;
+  to: string;
+  today: string;
+  entries: AgendaEntry[];
 }
 
 export interface ManagedUser {

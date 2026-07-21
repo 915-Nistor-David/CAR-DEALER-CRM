@@ -12,6 +12,8 @@ import Sales from "./pages/Sales";
 import Users from "./pages/Users";
 import Stages from "./pages/Stages";
 import Activity from "./pages/Activity";
+import Agenda from "./pages/Agenda";
+import Notifications from "./pages/Notifications";
 
 export default function App() {
   return (
@@ -26,6 +28,8 @@ export default function App() {
             <Route path="/board" element={<Board />} />
             <Route path="/vehicles" element={<Vehicles />} />
             <Route path="/vehicles/:id" element={<VehicleDetail />} />
+            <Route path="/agenda" element={<Agenda />} />
+            <Route path="/notificari" element={<Notifications />} />
             <Route path="/sales" element={
               <ProtectedRoute requiredRole={["Owner", "Vanzari"]}><Sales /></ProtectedRoute>
             } />
