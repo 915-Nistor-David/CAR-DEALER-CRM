@@ -178,6 +178,13 @@ export default function Board() {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
         onDragCancel={finishDrag}
+        // Derularea automata cat tii cardul in mana. Valorile implicite
+        // (acceleration 10, threshold 0.2) sunt gandite pentru un ecran lat:
+        // pe telefon zona de declansare inghite o treime din board si viteza
+        // face imposibil de nimerit coloana dorita.
+        // acceleration 3 = derulare vizibil mai blanda; threshold x 0.08 = porneste
+        // doar cand ajungi aproape de margine, deci ai loc sa poziționezi cardul.
+        autoScroll={{ acceleration: 3, threshold: { x: 0.08, y: 0.2 } }}
       >
         {/* snap-mandatory doar pe telefon: swipe-ul aterizeaza pe o coloana in loc
             sa se opreasca la mijlocul unui card. Pe desktop vrei derulare libera
