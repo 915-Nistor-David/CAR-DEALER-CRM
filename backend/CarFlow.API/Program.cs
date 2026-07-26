@@ -80,8 +80,15 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 builder.Services.AddAuthorization();
 
+// Originile permise vin din configurare, ca sa putem adauga IP-ul din LAN cand
+// testam de pe telefon (Cors__Origins__1=http://192.168.x.x:5173) fara sa comitem
+// o adresa specifica unei masini. Default: exact comportamentul de dinainte.
+// NU folosim AllowAnyOrigin — aplicatia trimite header Authorization.
+var corsOrigins = builder.Configuration.GetSection("Cors:Origins").Get<string[]>()
+                  ?? new[] { "http://localhost:5173" };
+
 builder.Services.AddCors(o => o.AddPolicy("Frontend", p =>
-    p.WithOrigins("http://localhost:5173").AllowAnyHeader().AllowAnyMethod()));
+    p.WithOrigins(corsOrigins).AllowAnyHeader().AllowAnyMethod()));
 
 var app = builder.Build();
 

@@ -60,7 +60,7 @@ export default function NotificationBell() {
   };
 
   const tabClass = (active: boolean) =>
-    `flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+    `flex min-h-9 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
       active ? "bg-accent/15 text-accent" : "text-ink-secondary hover:bg-surface-hover hover:text-ink"
     }`;
 
@@ -68,8 +68,11 @@ export default function NotificationBell() {
     <div className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="relative flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface text-ink-secondary hover:bg-surface-hover hover:text-ink"
+        className="relative flex h-11 w-11 items-center justify-center rounded-full border border-border bg-surface text-ink-secondary hover:bg-surface-hover hover:text-ink sm:h-9 sm:w-9"
         title="Notificări"
+        aria-label="Notificări"
+        aria-expanded={open}
+        aria-haspopup="dialog"
       >
         <BellIcon size={17} />
         {unreadCount > 0 && (
@@ -82,17 +85,32 @@ export default function NotificationBell() {
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 z-50 mt-2 w-96 overflow-hidden rounded-xl border border-border bg-surface shadow-xl">
-            <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
-              <span className="text-sm font-bold text-ink">Notificări</span>
+          {/* Pe telefon panoul nu poate fi un dropdown ancorat la clopotel: cu w-96
+              (384px) era mai lat decat ecranul, iar `right-0` raportat la clopotel
+              (care nu e la marginea din dreapta — hamburgerul e dupa el) scotea o
+              bucata in afara marginii din stanga, de unde nu se poate recupera.
+              Sub sm il fixam la viewport, cu 8px de gard pe fiecare parte.
+              De la sm redevine dropdown normal sub clopotel.
+              Inaltimea pe dvh + flex-col ca subsolul „Vezi toate" sa nu mai fie tăiat:
+              panoul e intr-un nav `sticky`, deci scroll-ul paginii nu l-ar aduce in vizor. */}
+          <div
+            role="dialog"
+            aria-label="Notificări"
+            className="fixed left-2 right-2 top-14 z-50 flex max-h-[calc(100dvh-4.5rem)] flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-xl sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:mt-2 sm:max-h-[calc(100dvh-5rem)] sm:w-96"
+          >
+            <div className="flex shrink-0 items-start justify-between gap-2 border-b border-border px-4 py-2.5">
+              <span className="min-w-0 truncate text-sm font-bold text-ink">Notificări</span>
               {unreadCount > 0 && (
-                <button onClick={handleMarkAll} className="text-xs font-medium text-accent hover:underline">
+                <button
+                  onClick={handleMarkAll}
+                  className="shrink-0 rounded-full px-2 py-1 text-xs font-medium text-accent hover:bg-accent/10"
+                >
                   {category ? `Marchează „${category}” citit` : "Marchează toate citite"}
                 </button>
               )}
             </div>
 
-            <div className="flex items-center gap-1 border-b border-border px-3 py-2">
+            <div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-border px-3 py-2">
               <button onClick={() => setCategory(null)} className={tabClass(category === null)}>
                 Toate
               </button>
@@ -108,7 +126,7 @@ export default function NotificationBell() {
               ))}
             </div>
 
-            <div className="max-h-96 overflow-y-auto">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
               {items.length === 0 ? (
                 <p className="px-4 py-8 text-center text-sm text-ink-muted">
                   {category ? `Nicio notificare la „${category}”.` : "Nicio notificare încă."}
@@ -144,7 +162,7 @@ export default function NotificationBell() {
             <Link
               to="/notificari"
               onClick={() => setOpen(false)}
-              className="block border-t border-border px-4 py-2.5 text-center text-xs font-medium text-accent hover:bg-surface-alt/60"
+              className="block shrink-0 border-t border-border px-4 py-3 text-center text-xs font-medium text-accent hover:bg-surface-alt/60"
             >
               Vezi toate notificările
             </Link>
