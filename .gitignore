@@ -20,3 +20,6 @@ dist-ssr/
 
 # Capturi de ecran ad-hoc din radacina (site1.png, site2.png, ...)
 site*.png
+
+# Note de sesiune Claude — nu se comit
+CLAUDE.md
