@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  DndContext, PointerSensor, useDraggable, useDroppable, useSensor, useSensors,
+  DndContext, DragOverlay, MouseSensor, TouchSensor, useDraggable, useDroppable,
+  useSensor, useSensors,
   type DragEndEvent, type DragStartEvent,
 } from "@dnd-kit/core";
 import { vehicleService } from "../services/vehicleService";
@@ -22,14 +23,21 @@ export default function Board() {
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
   const justDragged = useRef(false);
+  const [draggedId, setDraggedId] = useState<number | null>(null);
   const navigate = useNavigate();
   // Juniorii nu mai muta masinile intre etape (backendul respinge oricum);
   // pentru ei board-ul e doar de citit, cu click pe card catre detaliu.
   const canMove = authService.hasRole("Owner", "Vanzari");
   const { search, setSearch, brand, setBrand, model, setModel, filterVehicles } = useVehicleFilters();
 
+  // MouseSensor + TouchSensor, nu PointerSensor: pe touch avem nevoie de alt gest
+  // decat pe mouse, iar PointerSensor le trateaza identic. Cu `distance: 6` orice
+  // swipe pe un card pornea o mutare, deci board-ul nu putea fi derulat cu degetul.
+  // Cu `delay`, apasarea lunga porneste mutarea, iar un swipe (peste `tolerance`
+  // inainte de 250ms) lasa browserul sa deruleze normal.
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } })
   );
 
   const load = async () => {
@@ -47,12 +55,28 @@ export default function Board() {
 
   useEffect(() => { load(); }, []);
 
-  const handleDragStart = (_e: DragStartEvent) => {
+  const handleDragStart = (e: DragStartEvent) => {
     justDragged.current = true;
+    setDraggedId(Number(String(e.active.id).replace("vehicle-", "")));
   };
 
-  const handleDragEnd = async (e: DragEndEvent) => {
+  // Se apeleaza si la anulare, nu doar la final: dnd-kit trimite `onDragCancel`
+  // (NU `onDragEnd`) cand gestul e intrerupt — pe touch, exact ce se intampla
+  // cand browserul preia gestul pentru derulare.
+  const finishDrag = () => {
+    setDraggedId(null);
     setTimeout(() => { justDragged.current = false; }, 100);
+  };
+
+  // Plasa de siguranta, ca sa nu depindem de faptul ca dnd-kit ne apeleaza inapoi:
+  // orice interactiune noua porneste cu flagul curat. Inainte, `justDragged` era
+  // resetat DOAR in onDragEnd; daca un drag era anulat (pe telefon, cand browserul
+  // preia gestul pentru derulare), rămânea true pentru totdeauna si inghitea TOATE
+  // tap-urile urmatoare — cardurile nu mai deschideau detaliul pana la reload.
+  const resetDragGuard = () => { justDragged.current = false; };
+
+  const handleDragEnd = async (e: DragEndEvent) => {
+    finishDrag();
     const { active, over } = e;
     if (!over) return;
 
@@ -91,20 +115,32 @@ export default function Board() {
   const availableBrands = getAvailableBrands(vehicles);
   const availableModels = getModelsForBrand(vehicles, brand || null);
   const hasActiveFilters = !!(search || brand || model);
+  const draggedVehicle = draggedId != null ? vehicles.find((v) => v.vehicleId === draggedId) : null;
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
-        <div>
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-ink">Pipeline</h1>
           <p className="text-sm text-ink-secondary">
-            {canMove
-              ? "Trage o mașină în altă coloană pentru a-i schimba etapa."
-              : "Click pe o mașină pentru detalii. Mutarea între etape o fac patronul și echipa de vânzări."}
+            {canMove ? (
+              <>
+                {/* Pe touch un drag simplu deruleaza, deci instructiunea de desktop
+                    ar fi activ greselită. Prin CSS, nu prin detectie de user-agent. */}
+                <span className="sm:hidden">
+                  Apasă pe o mașină pentru detalii. Ține apăsat, apoi trage-o în altă coloană.
+                </span>
+                <span className="hidden sm:inline">
+                  Trage o mașină în altă coloană pentru a-i schimba etapa.
+                </span>
+              </>
+            ) : (
+              "Apasă pe o mașină pentru detalii. Mutarea între etape o fac patronul și echipa de vânzări."
+            )}
           </p>
         </div>
         {authService.hasRole("Owner", "Vanzari") && (
-          <Button onClick={() => setShowForm(true)}>+ Adaugă mașină</Button>
+          <Button className="shrink-0" onClick={() => setShowForm(true)}>+ Adaugă mașină</Button>
         )}
       </div>
 
@@ -137,18 +173,37 @@ export default function Board() {
         <div className="mb-4 rounded-md bg-critical/15 px-4 py-3 text-sm text-critical">{error}</div>
       )}
 
-      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <div className="flex gap-3 overflow-x-auto pb-4">
+      <DndContext
+        sensors={sensors}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragCancel={finishDrag}
+      >
+        {/* snap-mandatory doar pe telefon: swipe-ul aterizeaza pe o coloana in loc
+            sa se opreasca la mijlocul unui card. Pe desktop vrei derulare libera
+            peste toate etapele, de aici sm:snap-none. */}
+        <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-4 sm:snap-none">
           {stages.map((stage) => (
             <StageColumn
               key={stage.stageId}
               stage={stage}
               vehicles={filtered.filter((v) => v.currentStageId === stage.stageId)}
               onCardClick={handleCardClick}
+              onInteractionStart={resetDragGuard}
               canMove={canMove}
             />
           ))}
         </div>
+        {/* Cardul tras se randeaza aici, in afara containerului cu scroll. Inainte
+            era translatat pe loc INAUNTRUL scroller-ului, ceea ce se purta prost
+            la auto-scroll pe mobil. */}
+        <DragOverlay dropAnimation={null}>
+          {draggedVehicle && (
+            <div className="w-60 rotate-2 rounded-xl border border-accent/50 bg-surface p-2 shadow-2xl">
+              <VehicleCardBody vehicle={draggedVehicle} />
+            </div>
+          )}
+        </DragOverlay>
       </DndContext>
 
       {showForm && (
@@ -161,10 +216,11 @@ export default function Board() {
   );
 }
 
-function StageColumn({ stage, vehicles, onCardClick, canMove }: {
+function StageColumn({ stage, vehicles, onCardClick, onInteractionStart, canMove }: {
   stage: Stage;
   vehicles: Vehicle[];
   onCardClick: (id: number) => void;
+  onInteractionStart: () => void;
   canMove: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `stage-${stage.stageId}` });
@@ -172,7 +228,7 @@ function StageColumn({ stage, vehicles, onCardClick, canMove }: {
   return (
     <div
       ref={setNodeRef}
-      className={`flex w-64 shrink-0 flex-col rounded-xl border p-2 transition-colors ${
+      className={`flex w-60 shrink-0 snap-start flex-col rounded-xl border p-2 transition-colors sm:w-64 ${
         isOver ? "border-accent/60 bg-accent/10 ring-2 ring-accent" : "border-border/60 bg-surface-alt/60"
       }`}
     >
@@ -185,38 +241,49 @@ function StageColumn({ stage, vehicles, onCardClick, canMove }: {
       <div className="flex min-h-24 flex-col gap-2">
         {vehicles.map((v) => (
           <VehicleCard key={v.vehicleId} vehicle={v} onClick={() => onCardClick(v.vehicleId)}
-            canMove={canMove} />
+            onInteractionStart={onInteractionStart} canMove={canMove} />
         ))}
       </div>
     </div>
   );
 }
 
-function VehicleCard({ vehicle, onClick, canMove }: {
-  vehicle: Vehicle; onClick: () => void; canMove: boolean;
+function VehicleCard({ vehicle, onClick, onInteractionStart, canMove }: {
+  vehicle: Vehicle; onClick: () => void; onInteractionStart: () => void; canMove: boolean;
 }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `vehicle-${vehicle.vehicleId}`,
     disabled: !canMove,
   });
 
-  const style = transform
-    ? { transform: `translate(${transform.x}px, ${transform.y}px)`, zIndex: 50 }
-    : undefined;
-
-  const photo = assetUrl(vehicle.mainPhotoUrl);
-
   return (
     <div
       ref={setNodeRef}
-      style={style}
       {...listeners}
       {...attributes}
+      // In faza de captura, deci INAINTE de listener-ele dnd-kit: orice atingere
+      // noua curata garda de click, ca un drag anulat sa nu poata bloca tap-ul.
+      onPointerDownCapture={onInteractionStart}
       onClick={onClick}
+      // touch-action: manipulation scoate intarzierea de double-tap-zoom, dar
+      // lasa derularea nativa — de care avem nevoie, pentru ca board-ul se
+      // deruleaza lateral pornind chiar de pe un card.
+      style={{ touchAction: "manipulation" }}
       className={`rounded-xl border border-border bg-surface p-2 shadow-sm transition-all hover:border-accent/40 hover:shadow-[0_8px_30px_-8px_rgba(124,90,255,0.35)] ${
         canMove ? "cursor-grab" : "cursor-pointer"
-      } ${isDragging ? "opacity-70 shadow-lg" : ""}`}
+      } ${isDragging ? "opacity-40" : ""}`}
     >
+      <VehicleCardBody vehicle={vehicle} />
+    </div>
+  );
+}
+
+// Doar partea vizuala, refolosita si in DragOverlay.
+function VehicleCardBody({ vehicle }: { vehicle: Vehicle }) {
+  const photo = assetUrl(vehicle.mainPhotoUrl);
+
+  return (
+    <>
       {photo ? (
         <img src={photo} alt="" className="mb-2 h-24 w-full rounded-lg object-cover" />
       ) : (
@@ -246,6 +313,6 @@ function VehicleCard({ vehicle, onClick, canMove }: {
           {vehicle.isSold && <Badge tone="good">Vândută</Badge>}
         </div>
       </div>
-    </div>
+    </>
   );
 }
