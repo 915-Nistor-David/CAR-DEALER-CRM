@@ -1,0 +1,22 @@
+# .NET
+bin/
+obj/
+*.user
+.vs/
+
+# Uploaded vehicle photos (runtime content, not source-controlled)
+backend/CarFlow.API/wwwroot/vehicles/
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Capturi de ecran ad-hoc din radacina (site1.png, site2.png, ...)
+site*.png
