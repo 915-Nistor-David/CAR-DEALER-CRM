@@ -34,8 +34,11 @@ export default function RingChart({
 
   return (
     <div className="flex flex-col items-center gap-3">
-      <div className="relative" style={{ width: size, height: size }}>
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
+      {/* `size` ramane doar spatiul de coordonate al SVG-ului. Latimea reala o
+          da CSS-ul: pana la 160px, dar se strange daca nu are loc. Inainte era
+          fixata prin `style` inline, deci imuna la orice clasa Tailwind. */}
+      <div className="relative aspect-square w-full" style={{ maxWidth: size }}>
+        <svg viewBox={`0 0 ${size} ${size}`} className="h-full w-full -rotate-90">
           <circle
             cx={size / 2}
             cy={size / 2}
