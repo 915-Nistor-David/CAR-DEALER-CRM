@@ -88,7 +88,7 @@ export default function Notifications() {
             Tot ce s-a întâmplat în stoc: mutări, bani, lucruri de rezolvat.
           </p>
         </div>
-        <Button variant="secondary" onClick={handleMarkAll} className="px-3 py-1.5">
+        <Button variant="secondary" onClick={handleMarkAll}>
           {category ? `Marchează „${category}” citit` : "Marchează toate citite"}
         </Button>
       </div>
@@ -134,7 +134,7 @@ export default function Notifications() {
             Doar necitite
           </label>
           {hasFilters && (
-            <Button variant="ghost" onClick={clearFilters} className="px-3 py-2 text-sm">
+            <Button variant="ghost" onClick={clearFilters}>
               Șterge filtrele
             </Button>
           )}
@@ -187,14 +187,14 @@ export default function Notifications() {
           {totalPages > 1 && (
             <div className="mt-4 flex items-center justify-center gap-3">
               <Button variant="secondary" disabled={page === 0}
-                onClick={() => setPage((p) => p - 1)} className="px-3 py-1.5">
+                onClick={() => setPage((p) => p - 1)}>
                 ‹ Înapoi
               </Button>
               <span className="text-sm text-ink-secondary">
                 Pagina {page + 1} din {totalPages}
               </span>
               <Button variant="secondary" disabled={page >= totalPages - 1}
-                onClick={() => setPage((p) => p + 1)} className="px-3 py-1.5">
+                onClick={() => setPage((p) => p + 1)}>
                 Înainte ›
               </Button>
             </div>

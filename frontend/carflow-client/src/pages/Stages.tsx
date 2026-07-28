@@ -220,8 +220,8 @@ function StageForm({ title, form, setForm, onSubmit, onCancel }: {
           Etapa „vândută” (aici ajunge mașina la înregistrarea vânzării)
         </label>
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="secondary" onClick={onCancel} className="px-3 py-1.5">Anulează</Button>
-          <Button type="submit" className="px-3 py-1.5">Salvează</Button>
+          <Button type="button" variant="secondary" onClick={onCancel}>Anulează</Button>
+          <Button type="submit">Salvează</Button>
         </div>
       </form>
     </Card>
@@ -279,7 +279,7 @@ function SettingsCard() {
             <Input type="number" min={1} max={3650} required value={settings.stockAlertDays}
               onChange={(e) => setSettings((s) => s && { ...s, stockAlertDays: Number(e.target.value) })} />
           </div>
-          <Button type="submit" disabled={saving} className="w-full py-2">
+          <Button type="submit" disabled={saving} className="w-full">
             {saving ? "Se salvează..." : saved ? "✓ Salvat" : "Salvează setările"}
           </Button>
         </form>

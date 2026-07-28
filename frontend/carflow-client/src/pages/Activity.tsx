@@ -55,7 +55,7 @@ export default function Activity() {
           <label className="mb-1 block text-xs font-medium text-ink-secondary">Până la</label>
           <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-auto" />
         </div>
-        <Button onClick={() => load()} className="px-4 py-2">Aplică</Button>
+        <Button onClick={() => load()}>Aplică</Button>
         {report && (
           <span className="ml-auto rounded-full border border-border px-3 py-1.5 text-xs text-ink-secondary">
             {totalMoves} mutări în total

@@ -215,7 +215,7 @@ function StageMover({ vehicle, stages, onChanged }: {
         </Select>
         <Input value={note} onChange={(e) => setNote(e.target.value)}
           placeholder="Notă opțională (ex: așteaptă piesă)" />
-        <Button onClick={handleMove} disabled={saving || stageId === vehicle.currentStageId} className="w-full py-2">
+        <Button onClick={handleMove} disabled={saving || stageId === vehicle.currentStageId} className="w-full">
           {saving ? "Se mută..." : "Mută mașina"}
         </Button>
       </div>
@@ -306,7 +306,7 @@ function PhotosSection({ vehicle, onChanged }: { vehicle: VehicleDetailType; onC
             title="Categoria în care se încarcă poza">
             {PHOTO_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
           </Select>
-          <Button onClick={() => fileRef.current?.click()} disabled={uploading} className="px-3 py-2">
+          <Button onClick={() => fileRef.current?.click()} disabled={uploading}>
             {uploading ? "Se încarcă..." : "+ Adaugă poză"}
           </Button>
           <input ref={fileRef} type="file" accept=".jpg,.jpeg,.png,.webp" className="hidden"
@@ -454,7 +454,7 @@ function CostsSection({ vehicle, onChanged }: { vehicle: VehicleDetailType; onCh
         <Input type="date" required value={date} onChange={(e) => setDate(e.target.value)} className="w-auto" />
         <Input value={description} onChange={(e) => setDescription(e.target.value)}
           placeholder="Descriere (opțional)" className="min-w-32 flex-1" />
-        <Button type="submit" disabled={saving} className="px-3 py-2">Adaugă</Button>
+        <Button type="submit" disabled={saving}>Adaugă</Button>
       </form>
 
       {vehicle.costs.length === 0 ? (
@@ -571,7 +571,7 @@ function DocumentsSection({ vehicle, onChanged }: { vehicle: VehicleDetailType; 
           <label className="mb-1 block text-xs text-ink-muted">Termen (opțional)</label>
           <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-auto" />
         </div>
-        <Button type="submit" disabled={saving || !name.trim()} className="px-3 py-2">Adaugă</Button>
+        <Button type="submit" disabled={saving || !name.trim()}>Adaugă</Button>
       </form>
 
       {vehicle.documents.length === 0 ? (

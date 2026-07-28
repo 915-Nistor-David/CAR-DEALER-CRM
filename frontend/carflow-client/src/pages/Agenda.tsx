@@ -89,11 +89,11 @@ export default function Agenda() {
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-base font-bold capitalize text-ink">{monthLabel}</h2>
           <div className="flex items-center gap-2">
-            <Button variant="secondary" className="px-3 py-1.5"
+            <Button variant="secondary"
               onClick={() => setCursor(new Date(year, month - 1, 1))}>‹</Button>
-            <Button variant="secondary" className="px-3 py-1.5"
+            <Button variant="secondary"
               onClick={() => setCursor(new Date())}>Azi</Button>
-            <Button variant="secondary" className="px-3 py-1.5"
+            <Button variant="secondary"
               onClick={() => setCursor(new Date(year, month + 1, 1))}>›</Button>
           </div>
         </div>

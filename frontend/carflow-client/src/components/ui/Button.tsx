@@ -11,10 +11,14 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: keyof typeof variants;
 }
 
+// `min-h-11` (44px) doar sub 640px: un buton de 36px se rateaza usor cu degetul,
+// dar pe desktop inaltimea ramane exact cea de pana acum.
+// `inline-flex` + centrare sunt necesare pentru ca `min-height` singur ar lipi
+// textul de marginea de sus in loc sa-l centreze pe verticala.
 export default function Button({ variant = "primary", className = "", ...props }: ButtonProps) {
   return (
     <button
-      className={`rounded-full px-4 py-2 text-sm font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50 ${variants[variant]} ${className}`}
+      className={`inline-flex min-h-11 items-center justify-center rounded-full px-4 py-2 text-sm font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-0 ${variants[variant]} ${className}`}
       {...props}
     />
   );

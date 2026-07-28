@@ -1,4 +1,5 @@
 import type { SelectHTMLAttributes } from "react";
+import { fieldClass } from "./fieldStyles";
 
 export default function Select({
   className = "",
@@ -6,10 +7,7 @@ export default function Select({
   ...props
 }: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
-    <select
-      className={`w-full rounded-md border border-border bg-surface-alt px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent ${className}`}
-      {...props}
-    >
+    <select className={`${fieldClass} ${className}`} {...props}>
       {children}
     </select>
   );

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { vehicleService } from "../services/vehicleService";
 import { authService } from "../services/authService";
-import { Button, Input } from "./ui";
+import { Button, Input, Textarea } from "./ui";
 import type { SaveVehicleRequest, Vehicle, VehicleFormState } from "../types";
 
 interface Props {
@@ -76,8 +76,6 @@ export default function VehicleForm({ initial, onClose, onSaved }: Props) {
   };
 
   const label = "mb-1 block text-sm font-medium text-ink-secondary";
-  const textareaClass =
-    "w-full rounded-md border border-border bg-surface-alt px-3 py-2 text-sm text-ink placeholder:text-ink-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm" onClick={onClose}>
@@ -149,8 +147,8 @@ export default function VehicleForm({ initial, onClose, onSaved }: Props) {
           </div>
           <div>
             <label className={label}>Descriere</label>
-            <textarea rows={3} value={form.description ?? ""} onChange={(e) => set("description", e.target.value)}
-              className={textareaClass} placeholder="Dotări, stare, observații..." />
+            <Textarea rows={3} value={form.description ?? ""} onChange={(e) => set("description", e.target.value)}
+              placeholder="Dotări, stare, observații..." />
           </div>
 
           <div className="flex justify-end gap-3 pt-2">
