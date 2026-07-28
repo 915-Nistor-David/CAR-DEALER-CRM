@@ -68,7 +68,10 @@ export default function Users() {
         <div className="mb-4 rounded-md bg-critical/15 px-4 py-3 text-sm text-critical">{error}</div>
       )}
 
-      <div className="overflow-x-auto rounded-2xl border border-border bg-surface shadow-sm">
+      {/* Sub md randul devine card (vezi UserCard). Emailurile nu se pot trunchia
+          util intr-o coloana de tabel ingusta, iar select-ul de rol e un control
+          viu care trebuie sa ramana la indemana, nu ascuns dupa o derulare. */}
+      <div className="hidden overflow-x-auto rounded-2xl border border-border bg-surface shadow-sm md:block">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-border bg-surface-alt text-xs uppercase text-ink-muted">
             <tr>
@@ -91,21 +94,10 @@ export default function Users() {
                   </td>
                   <td className="px-4 py-3 text-ink-secondary">{u.email}</td>
                   <td className="px-4 py-3">
-                    {isSelf ? (
-                      <Badge tone={roleTone(u.role)}>{ROLE_LABELS[u.role] ?? u.role}</Badge>
-                    ) : (
-                      <Select value={u.role} onChange={(e) => handleRoleChange(u, e.target.value)}
-                        className="w-auto">
-                        {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
-                      </Select>
-                    )}
+                    <RoleControl user={u} isSelf={isSelf} onChange={handleRoleChange} />
                   </td>
                   <td className="px-4 py-3 text-ink-secondary">{formatDate(u.createdAt)}</td>
-                  <td className="px-4 py-3">
-                    <Badge tone={u.isActive ? "good" : "neutral"}>
-                      {u.isActive ? "Activ" : "Dezactivat"}
-                    </Badge>
-                  </td>
+                  <td className="px-4 py-3"><StateBadge active={u.isActive} /></td>
                   <td className="px-4 py-3 text-right">
                     {!isSelf && (
                       <button onClick={() => handleToggleActive(u)}
@@ -121,12 +113,71 @@ export default function Users() {
         </table>
       </div>
 
+      <div className="space-y-3 md:hidden">
+        {users.map((u) => (
+          <UserCard key={u.userId} user={u} isSelf={u.userId === me?.userId}
+            onRoleChange={handleRoleChange} onToggleActive={handleToggleActive} />
+        ))}
+      </div>
+
       {showForm && (
         <CreateUserModal
           onClose={() => setShowForm(false)}
           onSaved={() => { setShowForm(false); load(); }}
         />
       )}
+    </div>
+  );
+}
+
+// Bucatile comune tabelului si cardului.
+function RoleControl({ user, isSelf, onChange }: {
+  user: ManagedUser; isSelf: boolean; onChange: (u: ManagedUser, role: string) => void;
+}) {
+  // Ownerul nu-si poate schimba propriul rol — s-ar putea inchide singur afara.
+  if (isSelf) return <Badge tone={roleTone(user.role)}>{ROLE_LABELS[user.role] ?? user.role}</Badge>;
+  return (
+    <Select value={user.role} onChange={(e) => onChange(user, e.target.value)} className="w-auto">
+      {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+    </Select>
+  );
+}
+
+function StateBadge({ active }: { active: boolean }) {
+  return <Badge tone={active ? "good" : "neutral"}>{active ? "Activ" : "Dezactivat"}</Badge>;
+}
+
+function UserCard({ user, isSelf, onRoleChange, onToggleActive }: {
+  user: ManagedUser; isSelf: boolean;
+  onRoleChange: (u: ManagedUser, role: string) => void;
+  onToggleActive: (u: ManagedUser) => void;
+}) {
+  return (
+    <div className={`rounded-2xl border border-border bg-surface p-4 shadow-sm ${user.isActive ? "" : "opacity-50"}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-medium text-ink">
+            {user.name}{isSelf && <span className="ml-1.5 text-xs text-ink-muted">(tu)</span>}
+          </p>
+          {/* break-all, nu truncate: un email taiat nu ajuta pe nimeni. */}
+          <p className="break-all text-sm text-ink-secondary">{user.email}</p>
+        </div>
+        <span className="shrink-0"><StateBadge active={user.isActive} /></span>
+      </div>
+
+      <p className="mt-1 text-xs text-ink-muted">Creat {formatDate(user.createdAt)}</p>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border/60 pt-3">
+        <RoleControl user={user} isSelf={isSelf} onChange={onRoleChange} />
+        {!isSelf && (
+          <button onClick={() => onToggleActive(user)}
+            className={`ml-auto flex min-h-11 items-center rounded-lg px-2 text-xs font-medium hover:underline ${
+              user.isActive ? "text-critical" : "text-good"
+            }`}>
+            {user.isActive ? "Dezactivează" : "Reactivează"}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

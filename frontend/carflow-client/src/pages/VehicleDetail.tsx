@@ -474,7 +474,11 @@ function CostsSection({ vehicle, onChanged }: { vehicle: VehicleDetailType; onCh
           Niciun cost înregistrat. Adaugă transportul, service-ul, piesele — ca profitul real să fie corect.
         </p>
       ) : (
-        <table className="w-full text-left text-sm">
+        <>
+        {/* Sase coloane intr-un card de 303px: nu depaseste, dar celulele se
+            string la 37-69px si totul se rupe pe cate doua randuri. Sub sm
+            fiecare cost devine o intrare de lista. */}
+        <table className="hidden w-full text-left text-sm sm:table">
           <thead className="text-xs uppercase text-ink-muted">
             <tr>
               <th className="py-2">Categorie</th>
@@ -500,13 +504,41 @@ function CostsSection({ vehicle, onChanged }: { vehicle: VehicleDetailType; onCh
                   {c.canDelete && (
                     <button onClick={() => handleDelete(c.costId)}
                       className="text-xs text-ink-muted hover:text-critical"
-                      title="Șterge costul">✕</button>
+                      title="Șterge costul" aria-label="Șterge costul">✕</button>
                   )}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+
+        <ul className="divide-y divide-border sm:hidden">
+          {vehicle.costs.map((c) => (
+            <li key={c.costId} className="flex items-start gap-3 py-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge tone="neutral">{c.category}</Badge>
+                  <span className="text-xs text-ink-muted">{formatDate(c.date)}</span>
+                </div>
+                {c.description && (
+                  <p className="mt-1 text-sm text-ink-secondary">{c.description}</p>
+                )}
+                <p className="mt-0.5 text-xs text-ink-muted">
+                  Adăugat de {c.createdByName || "—"}
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                <span className="font-medium text-ink">{formatMoney(c.amount)}</span>
+                {c.canDelete && (
+                  <button onClick={() => handleDelete(c.costId)}
+                    className="flex h-11 w-11 items-center justify-center rounded-lg text-xs text-ink-muted hover:text-critical"
+                    aria-label={`Șterge costul ${c.category} de ${formatMoney(c.amount)}`}>✕</button>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+        </>
       )}
     </Card>
   );

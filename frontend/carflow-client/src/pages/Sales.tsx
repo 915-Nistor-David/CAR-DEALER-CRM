@@ -69,7 +69,11 @@ export default function Sales() {
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-border bg-surface shadow-sm">
+        <>
+        {/* Sub md, cele 9 coloane ale Ownerului nu incap nici pe departe: doar
+            padding-ul lor face 288px, deci dintr-un rand se vedea ~un sfert.
+            Aceleasi date, aceiasi atomi, alta asezare — vezi SaleCard. */}
+        <div className="hidden overflow-x-auto rounded-2xl border border-border bg-surface shadow-sm md:block">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-border bg-surface-alt text-xs uppercase text-ink-muted">
               <tr>
@@ -97,52 +101,104 @@ export default function Sales() {
                     {s.buyerName}
                     {s.buyerPhone && <span className="block text-xs text-ink-muted">{s.buyerPhone}</span>}
                   </td>
-                  <td className="px-4 py-3">
-                    {s.type === "Finantat" ? (
-                      <Badge tone="info">
-                        Finanțat{s.financingPartner ? ` · ${s.financingPartner}` : ""}
-                      </Badge>
-                    ) : (
-                      <Badge tone="good">Cash</Badge>
-                    )}
-                  </td>
+                  <td className="px-4 py-3"><SaleTypeBadge sale={s} /></td>
                   {isOwner && (
                     <td className="px-4 py-3 text-ink-secondary">{formatMoney(s.purchasePrice ?? 0)}</td>
                   )}
                   <td className="px-4 py-3 text-ink-secondary">{formatMoney(s.totalCosts)}</td>
                   <td className="px-4 py-3 font-medium text-ink">{formatMoney(s.salePrice)}</td>
                   {isOwner && (
-                    <td className="px-4 py-3">
-                      <Badge tone={(s.profit ?? 0) >= 0 ? "good" : "critical"} className="text-xs font-bold">
-                        {(s.profit ?? 0) >= 0 ? "+" : ""}{formatMoney(s.profit ?? 0)}
-                      </Badge>
-                    </td>
+                    <td className="px-4 py-3"><ProfitBadge profit={s.profit} /></td>
                   )}
                   <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-1.5">
-                      <ChecklistPill
-                        label="Acte"
-                        done={s.docsHandedOver}
-                        onToggle={() => toggleChecklist(s, "docsHandedOver")}
-                      />
-                      <ChecklistPill
-                        label="Plăcuțe"
-                        done={s.platesDone}
-                        onToggle={() => toggleChecklist(s, "platesDone")}
-                      />
-                      <ChecklistPill
-                        label="Garanție"
-                        done={s.warrantyGiven}
-                        onToggle={() => toggleChecklist(s, "warrantyGiven")}
-                      />
-                    </div>
+                    <SaleChecklist sale={s} onToggle={toggleChecklist} />
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+
+        <div className="space-y-3 md:hidden">
+          {sales.map((s) => (
+            <SaleCard key={s.saleId} sale={s} isOwner={isOwner} onToggle={toggleChecklist} />
+          ))}
+        </div>
+        </>
       )}
+    </div>
+  );
+}
+
+type ToggleFn = (sale: SaleListItem, field: "docsHandedOver" | "platesDone" | "warrantyGiven") => void;
+
+// Aceleasi bucati sunt folosite si in tabel, si in card — ca sa nu ajunga sa
+// arate diferit dupa prima corectie facuta intr-un singur loc.
+function SaleTypeBadge({ sale }: { sale: SaleListItem }) {
+  return sale.type === "Finantat" ? (
+    <Badge tone="info">Finanțat{sale.financingPartner ? ` · ${sale.financingPartner}` : ""}</Badge>
+  ) : (
+    <Badge tone="good">Cash</Badge>
+  );
+}
+
+function ProfitBadge({ profit }: { profit: number | null }) {
+  const value = profit ?? 0;
+  return (
+    <Badge tone={value >= 0 ? "good" : "critical"} className="text-xs font-bold">
+      {value >= 0 ? "+" : ""}{formatMoney(value)}
+    </Badge>
+  );
+}
+
+function SaleChecklist({ sale, onToggle }: { sale: SaleListItem; onToggle: ToggleFn }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      <ChecklistPill label="Acte" done={sale.docsHandedOver}
+        onToggle={() => onToggle(sale, "docsHandedOver")} />
+      <ChecklistPill label="Plăcuțe" done={sale.platesDone}
+        onToggle={() => onToggle(sale, "platesDone")} />
+      <ChecklistPill label="Garanție" done={sale.warrantyGiven}
+        onToggle={() => onToggle(sale, "warrantyGiven")} />
+    </div>
+  );
+}
+
+function SaleCard({ sale, isOwner, onToggle }: { sale: SaleListItem; isOwner: boolean; onToggle: ToggleFn }) {
+  return (
+    <div className="rounded-2xl border border-border bg-surface p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <Link to={`/vehicles/${sale.vehicleId}`}
+          className="min-w-0 font-medium text-accent hover:underline">
+          {sale.vehicleName}
+        </Link>
+        {isOwner && <span className="shrink-0"><ProfitBadge profit={sale.profit} /></span>}
+      </div>
+
+      <p className="mt-1 text-sm text-ink-secondary">
+        {sale.buyerName}
+        {sale.buyerPhone && <span className="text-ink-muted"> · {sale.buyerPhone}</span>}
+      </p>
+      <p className="mt-0.5 text-xs text-ink-muted">{formatDate(sale.saleDate)}</p>
+
+      <div className="mt-2"><SaleTypeBadge sale={sale} /></div>
+
+      <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 border-t border-border/60 pt-3 text-sm">
+        {isOwner && (
+          <>
+            <dt className="text-ink-muted">Achiziție</dt>
+            <dd className="text-right text-ink-secondary">{formatMoney(sale.purchasePrice ?? 0)}</dd>
+          </>
+        )}
+        <dt className="text-ink-muted">Costuri</dt>
+        <dd className="text-right text-ink-secondary">{formatMoney(sale.totalCosts)}</dd>
+        <dt className="text-ink-muted">Preț vânzare</dt>
+        <dd className="text-right font-medium text-ink">{formatMoney(sale.salePrice)}</dd>
+      </dl>
+
+      <div className="mt-3 border-t border-border/60 pt-3">
+        <SaleChecklist sale={sale} onToggle={onToggle} />
+      </div>
     </div>
   );
 }
@@ -151,7 +207,10 @@ function ChecklistPill({ label, done, onToggle }: { label: string; done: boolean
   return (
     <button
       onClick={onToggle}
-      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors ${
+      // Pe telefon pastilele sunt singurul lucru pe care chiar il apesi in
+      // aceasta pagina; 24px inaltime era prea putin. De la md redevin compacte,
+      // ca sa incapa in celula de tabel.
+      className={`inline-flex min-h-11 items-center gap-1 rounded-full border px-3 py-1 text-[11px] font-medium transition-colors md:min-h-0 md:px-2.5 ${
         done
           ? "border-accent/40 bg-accent/15 text-accent-hover"
           : "border-border text-ink-muted hover:border-ink-muted hover:text-ink-secondary"

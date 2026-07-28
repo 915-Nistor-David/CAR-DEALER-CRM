@@ -74,7 +74,8 @@ export default function Activity() {
           <p className="text-ink-secondary">Nicio mutare înregistrată în acest interval.</p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-border bg-surface shadow-sm">
+        <>
+        <div className="hidden overflow-x-auto rounded-2xl border border-border bg-surface shadow-sm md:block">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-border bg-surface-alt text-xs uppercase text-ink-muted">
               <tr>
@@ -91,11 +92,7 @@ export default function Activity() {
                   <td className="px-4 py-3 font-medium text-ink">
                     {i === 0 && <span title="cel mai activ">🏆 </span>}{u.userName}
                   </td>
-                  <td className="px-4 py-3">
-                    <Badge tone={u.role === "Owner" ? "critical" : u.role === "Vanzari" ? "info" : "good"}>
-                      {ROLE_LABELS[u.role] ?? u.role ?? "—"}
-                    </Badge>
-                  </td>
+                  <td className="px-4 py-3"><RoleBadge role={u.role} /></td>
                   <td className="px-4 py-3">
                     <span className="text-base font-bold text-ink">{u.totalMoves}</span>
                   </td>
@@ -106,21 +103,58 @@ export default function Activity() {
                     {/* max-w-md = 448px intr-un rand de 343px: singura celula
                         care forta derularea acestui tabel. Plafonul are sens
                         doar unde exista loc pentru el. */}
-                    <div className="flex flex-wrap gap-1 md:max-w-md">
-                      {u.stageBreakdown.map((s) => (
-                        <span key={s.stageId}
-                          className="rounded-full bg-surface-alt px-2 py-0.5 text-[11px] text-ink-secondary">
-                          {s.stageName} × {s.count}
-                        </span>
-                      ))}
-                    </div>
+                    <div className="md:max-w-md"><StageBreakdown items={u.stageBreakdown} /></div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+
+        <div className="space-y-3 md:hidden">
+          {report.users.map((u, i) => (
+            <div key={u.userId} className="rounded-2xl border border-border bg-surface p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <p className="min-w-0 font-medium text-ink">
+                  {i === 0 && <span title="cel mai activ">🏆 </span>}{u.userName}
+                </p>
+                <span className="shrink-0"><RoleBadge role={u.role} /></span>
+              </div>
+              <p className="mt-1 text-sm text-ink-secondary">
+                <span className="text-base font-bold text-ink">{u.totalMoves}</span> mutări
+                {u.lastMoveAt && <> · ultima {formatDateTime(u.lastMoveAt)}</>}
+              </p>
+              {u.stageBreakdown.length > 0 && (
+                <div className="mt-3 border-t border-border/60 pt-3">
+                  <StageBreakdown items={u.stageBreakdown} />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+        </>
       )}
+    </div>
+  );
+}
+
+function RoleBadge({ role }: { role: string | null }) {
+  return (
+    <Badge tone={role === "Owner" ? "critical" : role === "Vanzari" ? "info" : "good"}>
+      {(role && ROLE_LABELS[role]) ?? role ?? "—"}
+    </Badge>
+  );
+}
+
+function StageBreakdown({ items }: { items: { stageId: number; stageName: string; count: number }[] }) {
+  return (
+    <div className="flex flex-wrap gap-1">
+      {items.map((s) => (
+        <span key={s.stageId}
+          className="rounded-full bg-surface-alt px-2 py-0.5 text-[11px] text-ink-secondary">
+          {s.stageName} × {s.count}
+        </span>
+      ))}
     </div>
   );
 }
