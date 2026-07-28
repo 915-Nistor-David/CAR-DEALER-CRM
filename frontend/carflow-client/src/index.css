@@ -16,6 +16,16 @@
   --color-critical: #e25555;
 }
 
+/* Plasa de siguranta, adaugata ultima si intentionat inutila: fiecare pagina a
+   fost masurata cu derulare orizontala 0 inainte de asta. `clip`, nu `hidden`
+   — `hidden` ar strica `position: sticky` la navbar si `scrollIntoView` de la
+   /etape. Rolul ei e sa transforme o viitoare scapare de 3px intr-un defect
+   invizibil, nu sa tina layoutul in picioare. */
+html,
+body {
+  overflow-x: clip;
+}
+
 body {
   font-family: Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
   background-color: var(--color-page);

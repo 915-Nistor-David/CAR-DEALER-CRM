@@ -67,7 +67,8 @@ export default function VehicleDetail() {
       {/* Header */}
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
-          <button onClick={() => navigate(-1)} className="mb-1 text-sm text-accent hover:underline">
+          <button onClick={() => navigate(-1)}
+            className="-my-3 mb-1 py-3 text-sm text-accent hover:underline sm:my-0 sm:py-0">
             ← Înapoi
           </button>
           <h1 className="text-2xl font-bold text-ink">
@@ -311,7 +312,10 @@ function PhotosSection({ vehicle, onChanged }: { vehicle: VehicleDetailType; onC
           Fotografii <span className="font-normal text-ink-muted">({vehicle.photos.length})</span>
         </h2>
         <div className="flex flex-1 items-center gap-2 sm:flex-none">
+          {/* Ce inseamna acest select se afla doar din `title`, adica dintr-un
+              tooltip pe care ecranul tactil nu-l arata niciodata. */}
           <Select value={category} onChange={(e) => setCategory(e.target.value)} className="w-auto min-w-0"
+            aria-label="Categoria în care se încarcă poza"
             title="Categoria în care se încarcă poza">
             {PHOTO_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
           </Select>
@@ -359,14 +363,21 @@ function PhotoStrip({ category, photos, onDelete }: {
     });
   };
 
+  // `[photos]`, nu `[photos.length]`: o poza inlocuita fara sa se schimbe
+  // numarul lor nu recalcula nimic. Listenerul pe `resize` e plasa de siguranta
+  // — ResizeObserver nu livreaza callback in orice context.
   useEffect(() => {
     updateArrows();
     const el = stripRef.current;
     if (!el) return;
     const observer = new ResizeObserver(updateArrows);
     observer.observe(el);
-    return () => observer.disconnect();
-  }, [photos.length]);
+    window.addEventListener("resize", updateArrows);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateArrows);
+    };
+  }, [photos]);
 
   const scrollBy = (direction: -1 | 1) => {
     const el = stripRef.current;
@@ -375,8 +386,8 @@ function PhotoStrip({ category, photos, onDelete }: {
   };
 
   const arrowClass =
-    "absolute top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full " +
-    "border border-border bg-surface/95 text-ink shadow-md hover:bg-surface-hover";
+    "absolute top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full " +
+    "border border-border bg-surface/95 text-ink shadow-md hover:bg-surface-hover sm:h-8 sm:w-8";
 
   return (
     <div>
@@ -626,19 +637,29 @@ function DocumentsSection({ vehicle, onChanged }: { vehicle: VehicleDetailType; 
         <ul className="space-y-1.5">
           {vehicle.documents.map((d) => (
             <li key={d.documentId}
-              className="group flex items-center gap-3 rounded-lg border border-border/60 px-3 py-2">
-              <input type="checkbox" checked={d.isDone} onChange={() => handleToggle(d.documentId)}
-                className="cursor-pointer" />
-              <span className={`flex-1 text-sm ${d.isDone ? "text-ink-muted line-through" : "text-ink"}`}>
-                {d.name}
-              </span>
+              className="flex items-center gap-3 rounded-lg border border-border/60 px-3 py-2">
+              {/* Numele face parte din eticheta, deci tot randul bifeaza actul
+                  — o caseta de 20px singura e prea mica pentru un deget. */}
+              <label className="flex min-h-11 min-w-0 flex-1 cursor-pointer items-center gap-3 sm:min-h-0">
+                <input type="checkbox" checked={d.isDone} onChange={() => handleToggle(d.documentId)}
+                  className="h-5 w-5 shrink-0 cursor-pointer sm:h-4 sm:w-4" />
+                <span className={`min-w-0 flex-1 text-sm ${d.isDone ? "text-ink-muted line-through" : "text-ink"}`}>
+                  {d.name}
+                </span>
+              </label>
               {d.dueDate && !d.isDone && (
                 <Badge tone={daysUntil(d.dueDate) < 0 ? "critical" : daysUntil(d.dueDate) <= 3 ? "warning" : "neutral"}>
                   {formatDate(d.dueDate)}
                 </Badge>
               )}
+              {/* Era `hidden ... group-hover:block`, adica display:none pe orice
+                  ecran tactil — si in afara ordinii de tab. Singurul control
+                  ascuns dupa hover din tot proiectul. */}
               <button onClick={() => handleDelete(d.documentId)}
-                className="hidden text-xs text-ink-muted hover:text-critical group-hover:block">✕</button>
+                aria-label={`Șterge actul „${d.name}”`}
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-xs text-ink-muted hover:text-critical sm:h-7 sm:w-7">
+                ✕
+              </button>
             </li>
           ))}
         </ul>
@@ -733,18 +754,18 @@ function SaleCard({ vehicle, onChanged }: { vehicle: VehicleDetailType; onChange
       <div className="mt-4 border-t border-border pt-3">
         <p className="mb-2 text-xs font-semibold uppercase text-ink-muted">Checklist post-vânzare</p>
         <div className="space-y-1.5 text-sm text-ink-secondary">
-          <label className="flex cursor-pointer items-center gap-2">
-            <input type="checkbox" checked={sale.docsHandedOver} disabled={saving}
+          <label className="flex min-h-11 cursor-pointer items-center gap-2 sm:min-h-0">
+            <input type="checkbox" className="h-5 w-5 shrink-0 sm:h-4 sm:w-4" checked={sale.docsHandedOver} disabled={saving}
               onChange={() => toggle("docsHandedOver")} />
             Acte predate
           </label>
-          <label className="flex cursor-pointer items-center gap-2">
-            <input type="checkbox" checked={sale.platesDone} disabled={saving}
+          <label className="flex min-h-11 cursor-pointer items-center gap-2 sm:min-h-0">
+            <input type="checkbox" className="h-5 w-5 shrink-0 sm:h-4 sm:w-4" checked={sale.platesDone} disabled={saving}
               onChange={() => toggle("platesDone")} />
             Plăcuțe înmatriculare
           </label>
-          <label className="flex cursor-pointer items-center gap-2">
-            <input type="checkbox" checked={sale.warrantyGiven} disabled={saving}
+          <label className="flex min-h-11 cursor-pointer items-center gap-2 sm:min-h-0">
+            <input type="checkbox" className="h-5 w-5 shrink-0 sm:h-4 sm:w-4" checked={sale.warrantyGiven} disabled={saving}
               onChange={() => toggle("warrantyGiven")} />
             Garanție predată
           </label>

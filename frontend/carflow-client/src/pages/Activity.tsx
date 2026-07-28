@@ -90,7 +90,7 @@ export default function Activity() {
               {report.users.map((u, i) => (
                 <tr key={u.userId} className="border-b border-border/60 last:border-0">
                   <td className="px-4 py-3 font-medium text-ink">
-                    {i === 0 && <span title="cel mai activ">🏆 </span>}{u.userName}
+                    {i === 0 && <span role="img" aria-label="cel mai activ" title="cel mai activ">🏆 </span>}{u.userName}
                   </td>
                   <td className="px-4 py-3"><RoleBadge role={u.role} /></td>
                   <td className="px-4 py-3">
@@ -116,7 +116,7 @@ export default function Activity() {
             <div key={u.userId} className="rounded-2xl border border-border bg-surface p-4 shadow-sm">
               <div className="flex items-start justify-between gap-3">
                 <p className="min-w-0 font-medium text-ink">
-                  {i === 0 && <span title="cel mai activ">🏆 </span>}{u.userName}
+                  {i === 0 && <span role="img" aria-label="cel mai activ" title="cel mai activ">🏆 </span>}{u.userName}
                 </p>
                 <span className="shrink-0"><RoleBadge role={u.role} /></span>
               </div>

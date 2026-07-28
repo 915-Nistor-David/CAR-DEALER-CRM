@@ -168,8 +168,10 @@ function SaleCard({ sale, isOwner, onToggle }: { sale: SaleListItem; isOwner: bo
   return (
     <div className="rounded-2xl border border-border bg-surface p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
+        {/* py + margine negativa: zona de atingere creste la 44px fara ca
+            randul sa se distanteze vizual. */}
         <Link to={`/vehicles/${sale.vehicleId}`}
-          className="min-w-0 font-medium text-accent hover:underline">
+          className="-my-2.5 min-w-0 py-2.5 font-medium text-accent hover:underline">
           {sale.vehicleName}
         </Link>
         {isOwner && <span className="shrink-0"><ProfitBadge profit={sale.profit} /></span>}

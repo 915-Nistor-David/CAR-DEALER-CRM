@@ -217,13 +217,17 @@ function StageForm({ title, form, setForm, onSubmit, onCancel }: {
             </Select>
           </div>
         </div>
-        <label className="flex cursor-pointer items-center gap-2 text-sm text-ink-secondary">
-          <input type="checkbox" checked={form.isSaleReady}
+        {/* Caseta bruta are 13px. Eticheta e tinta reala de atingere — un click
+            pe ea comuta caseta — deci ea trebuie sa aiba 44px, nu caseta. */}
+        <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm text-ink-secondary sm:min-h-0">
+          <input type="checkbox" className="h-5 w-5 shrink-0 sm:h-4 sm:w-4" checked={form.isSaleReady}
             onChange={(e) => setForm((f) => ({ ...f, isSaleReady: e.target.checked }))} />
           Etapa „gata de vânzare” (folosită pentru potrivirea clienților interesați)
         </label>
-        <label className="flex cursor-pointer items-center gap-2 text-sm text-ink-secondary">
-          <input type="checkbox" checked={form.isSoldStage}
+        {/* Caseta bruta are 13px. Eticheta e tinta reala de atingere — un click
+            pe ea comuta caseta — deci ea trebuie sa aiba 44px, nu caseta. */}
+        <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm text-ink-secondary sm:min-h-0">
+          <input type="checkbox" className="h-5 w-5 shrink-0 sm:h-4 sm:w-4" checked={form.isSoldStage}
             onChange={(e) => setForm((f) => ({ ...f, isSoldStage: e.target.checked }))} />
           Etapa „vândută” (aici ajunge mașina la înregistrarea vânzării)
         </label>

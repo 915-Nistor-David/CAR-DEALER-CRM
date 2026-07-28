@@ -75,7 +75,7 @@ export default function Notifications() {
   const hasFilters = category !== null || type !== "" || unreadOnly || from !== "" || to !== "";
   const totalPages = Math.ceil(total / PAGE_SIZE);
   const tabClass = (active: boolean) =>
-    `flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
+    `flex min-h-11 items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors sm:min-h-0 ${
       active ? "bg-accent/15 text-accent ring-1 ring-accent/40" : "text-ink-secondary hover:bg-surface-hover hover:text-ink"
     }`;
 
@@ -128,8 +128,8 @@ export default function Notifications() {
             <label className="mb-1 block text-xs font-medium text-ink-secondary">Până la</label>
             <Input type="date" value={to} onChange={(e) => withReset(setTo)(e.target.value)} className="w-auto" />
           </div>
-          <label className="flex cursor-pointer items-center gap-2 py-2 text-sm text-ink-secondary">
-            <input type="checkbox" checked={unreadOnly}
+          <label className="flex min-h-11 cursor-pointer items-center gap-2 py-2 text-sm text-ink-secondary sm:min-h-0">
+            <input type="checkbox" checked={unreadOnly} className="h-5 w-5 shrink-0 sm:h-4 sm:w-4"
               onChange={(e) => withReset(setUnreadOnly)(e.target.checked)} />
             Doar necitite
           </label>
@@ -175,8 +175,13 @@ export default function Notifications() {
                       {!n.isRead && <span className="h-2 w-2 rounded-full bg-accent" />}
                     </div>
                     <p className="mt-0.5 text-sm text-ink-secondary">{n.message}</p>
-                    <p className="mt-1 text-[11px] text-ink-muted" title={formatDateTime(n.createdAt)}>
-                      {timeAgo(n.createdAt)}
+                    {/* Data exacta traia doar in `title`, deci pe telefon nu se
+                        putea afla niciodata. Acum e scrisa, langa forma
+                        relativa, de la sm in sus; sub sm ramane in dateTime,
+                        unde o citeste cel putin un cititor de ecran. */}
+                    <p className="mt-1 text-[11px] text-ink-muted">
+                      <time dateTime={n.createdAt}>{timeAgo(n.createdAt)}</time>
+                      <span className="hidden sm:inline"> · {formatDateTime(n.createdAt)}</span>
                     </p>
                   </div>
                 </button>

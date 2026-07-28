@@ -69,7 +69,7 @@ export default function Navbar() {
       <div className="w-full px-4 sm:px-6">
         <div className="flex h-14 items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-6">
-            <Link to="/dashboard" className="flex shrink-0 items-center gap-2.5">
+            <Link to="/dashboard" className="flex min-h-11 shrink-0 items-center gap-2.5 sm:min-h-0">
               <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-[#8b6bff] to-[#5b34d9] text-sm font-bold text-white">
                 C
               </span>
