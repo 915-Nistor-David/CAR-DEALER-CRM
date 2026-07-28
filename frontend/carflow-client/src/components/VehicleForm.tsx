@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { vehicleService } from "../services/vehicleService";
 import { authService } from "../services/authService";
-import { Button, Input, Textarea } from "./ui";
+import { Button, Input, Modal, Textarea } from "./ui";
 import type { SaveVehicleRequest, Vehicle, VehicleFormState } from "../types";
 
 interface Props {
@@ -78,89 +78,82 @@ export default function VehicleForm({ initial, onClose, onSaved }: Props) {
   const label = "mb-1 block text-sm font-medium text-ink-secondary";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm" onClick={onClose}>
-      <div
-        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-border bg-surface p-6 shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-ink">
-            {isEdit ? "Editează mașina" : "Adaugă mașină în stoc"}
-          </h2>
-          <button onClick={onClose} className="text-ink-muted hover:text-ink">✕</button>
+    <Modal
+      title={isEdit ? "Editează mașina" : "Adaugă mașină în stoc"}
+      onClose={onClose}
+      onSubmit={handleSubmit}
+      footer={
+        <>
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Anulează
+          </Button>
+          <Button type="submit" disabled={saving}>
+            {saving ? "Se salvează..." : isEdit ? "Salvează" : "Adaugă mașina"}
+          </Button>
+        </>
+      }
+    >
+      {error && (
+        <div className="rounded-md bg-critical/15 px-4 py-3 text-sm text-critical">{error}</div>
+      )}
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <label className={label}>Marcă *</label>
+          <Input required value={form.make} onChange={(e) => set("make", e.target.value)}
+            placeholder="Volkswagen" />
         </div>
-
-        {error && (
-          <div className="mb-4 rounded-md bg-critical/15 px-4 py-3 text-sm text-critical">{error}</div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className={label}>Marcă *</label>
-              <Input required value={form.make} onChange={(e) => set("make", e.target.value)}
-                placeholder="Volkswagen" />
-            </div>
-            <div>
-              <label className={label}>Model *</label>
-              <Input required value={form.model} onChange={(e) => set("model", e.target.value)}
-                placeholder="Golf 7" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className={label}>An fabricație *</label>
-              <Input type="number" required min={1950} max={2100} value={form.year ?? ""}
-                onChange={(e) => setNumber("year", e.target.value)} />
-            </div>
-            <div>
-              <label className={label}>Kilometraj *</label>
-              <Input type="number" required min={0} value={form.km ?? ""}
-                onChange={(e) => setNumber("km", e.target.value)} placeholder="132000" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            {isOwner && (
-              <div>
-                <label className={label}>Preț achiziție (€) *</label>
-                <Input type="number" required min={0} step="0.01" value={form.purchasePrice ?? ""}
-                  onChange={(e) => setNumber("purchasePrice", e.target.value)} />
-              </div>
-            )}
-            <div className={isOwner ? "" : "col-span-2"}>
-              <label className={label}>VIN</label>
-              <Input value={form.vin ?? ""} onChange={(e) => set("vin", e.target.value)}
-                placeholder="WVWZZZ..." maxLength={20} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className={label}>Programare RAR</label>
-              <Input type="date" value={form.rarDate ?? ""}
-                onChange={(e) => set("rarDate", e.target.value)} />
-            </div>
-            <div>
-              <label className={label}>Sursă achiziție</label>
-              <Input value={form.acquisitionSource ?? ""} onChange={(e) => set("acquisitionSource", e.target.value)}
-                placeholder="Licitație B2B, persoană fizică..." />
-            </div>
-          </div>
-          <div>
-            <label className={label}>Descriere</label>
-            <Textarea rows={3} value={form.description ?? ""} onChange={(e) => set("description", e.target.value)}
-              placeholder="Dotări, stare, observații..." />
-          </div>
-
-          <div className="flex justify-end gap-3 pt-2">
-            <Button type="button" variant="secondary" onClick={onClose}>
-              Anulează
-            </Button>
-            <Button type="submit" disabled={saving}>
-              {saving ? "Se salvează..." : isEdit ? "Salvează" : "Adaugă mașina"}
-            </Button>
-          </div>
-        </form>
+        <div>
+          <label className={label}>Model *</label>
+          <Input required value={form.model} onChange={(e) => set("model", e.target.value)}
+            placeholder="Golf 7" />
+        </div>
       </div>
-    </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <label className={label}>An fabricație *</label>
+          <Input type="number" required min={1950} max={2100} value={form.year ?? ""}
+            onChange={(e) => setNumber("year", e.target.value)} />
+        </div>
+        <div>
+          <label className={label}>Kilometraj *</label>
+          <Input type="number" required min={0} value={form.km ?? ""}
+            onChange={(e) => setNumber("km", e.target.value)} placeholder="132000" />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {isOwner && (
+          <div>
+            <label className={label}>Preț achiziție (€) *</label>
+            <Input type="number" required min={0} step="0.01" value={form.purchasePrice ?? ""}
+              onChange={(e) => setNumber("purchasePrice", e.target.value)} />
+          </div>
+        )}
+        {/* Fara pretul de achizitie (non-Owner) VIN-ul ramane singur pe rand,
+            deci ocupa ambele coloane — dar doar acolo unde exista doua. */}
+        <div className={isOwner ? "" : "sm:col-span-2"}>
+          <label className={label}>VIN</label>
+          <Input value={form.vin ?? ""} onChange={(e) => set("vin", e.target.value)}
+            placeholder="WVWZZZ..." maxLength={20} />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <label className={label}>Programare RAR</label>
+          <Input type="date" value={form.rarDate ?? ""}
+            onChange={(e) => set("rarDate", e.target.value)} />
+        </div>
+        <div>
+          <label className={label}>Sursă achiziție</label>
+          <Input value={form.acquisitionSource ?? ""} onChange={(e) => set("acquisitionSource", e.target.value)}
+            placeholder="Licitație B2B, persoană fizică..." />
+        </div>
+      </div>
+      <div>
+        <label className={label}>Descriere</label>
+        <Textarea rows={3} value={form.description ?? ""} onChange={(e) => set("description", e.target.value)}
+          placeholder="Dotări, stare, observații..." />
+      </div>
+    </Modal>
   );
 }

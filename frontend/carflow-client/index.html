@@ -1,9 +1,14 @@
 ﻿<!doctype html>
-<html lang="en">
+<html lang="ro">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- interactive-widget=resizes-content: fara el, tastatura software nu
+         micsoreaza viewportul de layout, deci `dvh` ramane la inaltimea plina
+         si butonul de submit al unui dialog sta sub tastatura. Chrome pe
+         Android il respecta; Safari pe iOS inca nu, acolo ne bazam pe faptul
+         ca foaia e ancorata jos si ca browserul deruleaza campul focusat. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
     <title>CarFlow</title>
   </head>
   <body>

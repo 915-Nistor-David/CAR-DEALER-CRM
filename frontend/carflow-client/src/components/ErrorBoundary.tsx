@@ -31,7 +31,7 @@ export default class ErrorBoundary extends Component<Props, State> {
     if (!this.state.error) return this.props.children;
 
     return (
-      <div className="flex min-h-screen items-center justify-center bg-surface-alt px-4">
+      <div className="flex min-h-dvh items-center justify-center bg-surface-alt px-4">
         <div className="w-full max-w-md rounded-2xl border border-border bg-surface p-6 text-center shadow-xl">
           <h1 className="mb-2 text-lg font-bold text-ink">Ceva n-a mers bine</h1>
           <p className="mb-4 text-sm text-ink-secondary">

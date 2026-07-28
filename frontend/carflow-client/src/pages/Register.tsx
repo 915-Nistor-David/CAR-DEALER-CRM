@@ -36,7 +36,7 @@ export default function Register() {
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-page px-4 py-8">
+    <div className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-page px-4 py-8">
       <div
         aria-hidden
         className="pointer-events-none absolute left-1/2 top-1/2 h-[520px] w-[820px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent/15 blur-3xl"

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { userService } from "../services/userService";
 import { authService } from "../services/authService";
 import { formatDate } from "../utils/format";
-import { Badge, Button, Input, Select } from "../components/ui";
+import { Badge, Button, Input, Modal, Select } from "../components/ui";
 import { ROLES, ROLE_LABELS } from "../types";
 import type { CreateUserRequest, ManagedUser } from "../types";
 
@@ -154,51 +154,47 @@ function CreateUserModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
   const label = "mb-1 block text-sm font-medium text-ink-secondary";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm" onClick={onClose}>
-      <div className="w-full max-w-md rounded-2xl border border-border bg-surface p-6 shadow-xl"
-        onClick={(e) => e.stopPropagation()}>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-ink">Cont nou pentru un angajat</h2>
-          <button onClick={onClose} className="text-ink-muted hover:text-ink">✕</button>
-        </div>
+    <Modal
+      title="Cont nou pentru un angajat"
+      onClose={onClose}
+      onSubmit={handleSubmit}
+      size="md"
+      footer={
+        <>
+          <Button type="button" variant="secondary" onClick={onClose}>Anulează</Button>
+          <Button type="submit" disabled={saving}>
+            {saving ? "Se creează..." : "Creează contul"}
+          </Button>
+        </>
+      }
+    >
+      {error && (
+        <div className="rounded-md bg-critical/15 px-4 py-3 text-sm text-critical">{error}</div>
+      )}
 
-        {error && (
-          <div className="mb-4 rounded-md bg-critical/15 px-4 py-3 text-sm text-critical">{error}</div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className={label}>Nume *</label>
-            <Input required value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              placeholder="Ion Popescu" />
-          </div>
-          <div>
-            <label className={label}>Email *</label>
-            <Input type="email" required value={form.email}
-              onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-              placeholder="ion@dealer.ro" />
-          </div>
-          <div>
-            <label className={label}>Parolă * <span className="font-normal text-ink-muted">(minim 6 caractere)</span></label>
-            <Input type="password" required minLength={6} value={form.password}
-              onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} />
-          </div>
-          <div>
-            <label className={label}>Rol *</label>
-            <Select value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}>
-              {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
-            </Select>
-          </div>
-
-          <div className="flex justify-end gap-3 pt-2">
-            <Button type="button" variant="secondary" onClick={onClose}>Anulează</Button>
-            <Button type="submit" disabled={saving}>
-              {saving ? "Se creează..." : "Creează contul"}
-            </Button>
-          </div>
-        </form>
+      <div>
+        <label className={label}>Nume *</label>
+        <Input required value={form.name}
+          onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+          placeholder="Ion Popescu" />
       </div>
-    </div>
+      <div>
+        <label className={label}>Email *</label>
+        <Input type="email" required value={form.email}
+          onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+          placeholder="ion@dealer.ro" />
+      </div>
+      <div>
+        <label className={label}>Parolă * <span className="font-normal text-ink-muted">(minim 6 caractere)</span></label>
+        <Input type="password" required minLength={6} value={form.password}
+          onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} />
+      </div>
+      <div>
+        <label className={label}>Rol *</label>
+        <Select value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}>
+          {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+        </Select>
+      </div>
+    </Modal>
   );
 }

@@ -194,7 +194,7 @@ function StageForm({ title, form, setForm, onSubmit, onCancel }: {
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
             placeholder="Ex: Mecanică" />
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label className={label}>Alertă „stă prea mult” (zile)</label>
             <Input type="number" min={0} max={365} value={form.alertDays ?? ""}

@@ -7,7 +7,7 @@ import { authService } from "../services/authService";
 import { assetUrl } from "../services/api";
 import { daysLabel, daysUntil, formatDate, formatDateTime, formatKm, formatMoney, todayIso } from "../utils/format";
 import VehicleForm from "../components/VehicleForm";
-import { Badge, Button, Card, Input, Select } from "../components/ui";
+import { Badge, Button, Card, Input, Modal, Select } from "../components/ui";
 import { COST_CATEGORIES, PHOTO_CATEGORIES } from "../types";
 import type { CreateSaleRequest, Stage, VehicleDetail as VehicleDetailType } from "../types";
 
@@ -751,101 +751,94 @@ function SaleForm({ vehicle, onClose, onSaved }: {
   const label = "mb-1 block text-sm font-medium text-ink-secondary";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm" onClick={onClose}>
-      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-border bg-surface p-6 shadow-xl"
-        onClick={(e) => e.stopPropagation()}>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-ink">
-            Vinde {vehicle.make} {vehicle.model}
-          </h2>
-          <button onClick={onClose} className="text-ink-muted hover:text-ink">✕</button>
+    <Modal
+      title={`Vinde ${vehicle.make} ${vehicle.model}`}
+      onClose={onClose}
+      onSubmit={handleSubmit}
+      footer={
+        <>
+          <Button type="button" variant="secondary" onClick={onClose}>Anulează</Button>
+          <button type="submit" disabled={saving}
+            className="inline-flex min-h-11 items-center justify-center rounded-full bg-good px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50 sm:min-h-0">
+            {saving ? "Se salvează..." : "Înregistrează vânzarea"}
+          </button>
+        </>
+      }
+    >
+      {error && (
+        <div className="rounded-md bg-critical/15 px-4 py-3 text-sm text-critical">{error}</div>
+      )}
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <label className={label}>Preț vânzare (€) *</label>
+          <Input type="number" required min="0.01" step="0.01"
+            value={form.salePrice || ""}
+            onChange={(e) => setForm((f) => ({
+              ...f, salePrice: e.target.value === "" ? 0 : Number(e.target.value),
+            }))} />
         </div>
-
-        {error && (
-          <div className="mb-4 rounded-md bg-critical/15 px-4 py-3 text-sm text-critical">{error}</div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className={label}>Preț vânzare (€) *</label>
-              <Input type="number" required min="0.01" step="0.01"
-                value={form.salePrice || ""}
-                onChange={(e) => setForm((f) => ({
-                  ...f, salePrice: e.target.value === "" ? 0 : Number(e.target.value),
-                }))} />
-            </div>
-            <div>
-              <label className={label}>Data vânzării *</label>
-              <Input type="date" required value={form.saleDate}
-                onChange={(e) => setForm((f) => ({ ...f, saleDate: e.target.value }))} />
-            </div>
-          </div>
-
-          {form.salePrice > 0 && isOwner && (
-            <div className={`rounded-md px-4 py-3 text-sm ${estimatedProfit >= 0 ? "bg-good/15 text-good" : "bg-critical/15 text-critical"}`}>
-              Total investit: <strong>{formatMoney(invested)}</strong> → profit estimat:{" "}
-              <strong>{formatMoney(estimatedProfit)}</strong>
-            </div>
-          )}
-
-          <div>
-            <label className={label}>Tip vânzare *</label>
-            <div className="flex gap-4 text-sm text-ink-secondary">
-              <label className="flex cursor-pointer items-center gap-2">
-                <input type="radio" name="saleType" checked={form.type === "Cash"}
-                  onChange={() => setForm((f) => ({ ...f, type: "Cash" }))} />
-                Cash
-              </label>
-              <label className="flex cursor-pointer items-center gap-2">
-                <input type="radio" name="saleType" checked={form.type === "Finantat"}
-                  onChange={() => setForm((f) => ({ ...f, type: "Finantat" }))} />
-                Finanțat
-              </label>
-            </div>
-          </div>
-
-          {form.type === "Finantat" && (
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className={label}>Partener finanțare *</label>
-                <Input required value={form.financingPartner ?? ""}
-                  onChange={(e) => setForm((f) => ({ ...f, financingPartner: e.target.value }))}
-                  placeholder="TBI Bank, Cetelem..." />
-              </div>
-              <div>
-                <label className={label}>Termeni</label>
-                <Input value={form.financingTerms ?? ""}
-                  onChange={(e) => setForm((f) => ({ ...f, financingTerms: e.target.value }))}
-                  placeholder="60 rate, avans 20%..." />
-              </div>
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className={label}>Nume cumpărător *</label>
-              <Input required value={form.buyerName}
-                onChange={(e) => setForm((f) => ({ ...f, buyerName: e.target.value }))}
-                placeholder="Ion Popescu" />
-            </div>
-            <div>
-              <label className={label}>Telefon</label>
-              <Input value={form.buyerPhone ?? ""}
-                onChange={(e) => setForm((f) => ({ ...f, buyerPhone: e.target.value }))}
-                placeholder="07xx xxx xxx" />
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-3 pt-2">
-            <Button type="button" variant="secondary" onClick={onClose}>Anulează</Button>
-            <button type="submit" disabled={saving}
-              className="rounded-md bg-good px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50">
-              {saving ? "Se salvează..." : "Înregistrează vânzarea"}
-            </button>
-          </div>
-        </form>
+        <div>
+          <label className={label}>Data vânzării *</label>
+          <Input type="date" required value={form.saleDate}
+            onChange={(e) => setForm((f) => ({ ...f, saleDate: e.target.value }))} />
+        </div>
       </div>
-    </div>
+
+      {form.salePrice > 0 && isOwner && (
+        <div className={`rounded-md px-4 py-3 text-sm ${estimatedProfit >= 0 ? "bg-good/15 text-good" : "bg-critical/15 text-critical"}`}>
+          Total investit: <strong>{formatMoney(invested)}</strong> → profit estimat:{" "}
+          <strong>{formatMoney(estimatedProfit)}</strong>
+        </div>
+      )}
+
+      <div>
+        <label className={label}>Tip vânzare *</label>
+        <div className="flex gap-4 text-sm text-ink-secondary">
+          <label className="flex min-h-11 cursor-pointer items-center gap-2 sm:min-h-0">
+            <input type="radio" name="saleType" checked={form.type === "Cash"}
+              onChange={() => setForm((f) => ({ ...f, type: "Cash" }))} />
+            Cash
+          </label>
+          <label className="flex min-h-11 cursor-pointer items-center gap-2 sm:min-h-0">
+            <input type="radio" name="saleType" checked={form.type === "Finantat"}
+              onChange={() => setForm((f) => ({ ...f, type: "Finantat" }))} />
+            Finanțat
+          </label>
+        </div>
+      </div>
+
+      {form.type === "Finantat" && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label className={label}>Partener finanțare *</label>
+            <Input required value={form.financingPartner ?? ""}
+              onChange={(e) => setForm((f) => ({ ...f, financingPartner: e.target.value }))}
+              placeholder="TBI Bank, Cetelem..." />
+          </div>
+          <div>
+            <label className={label}>Termeni</label>
+            <Input value={form.financingTerms ?? ""}
+              onChange={(e) => setForm((f) => ({ ...f, financingTerms: e.target.value }))}
+              placeholder="60 rate, avans 20%..." />
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <label className={label}>Nume cumpărător *</label>
+          <Input required value={form.buyerName}
+            onChange={(e) => setForm((f) => ({ ...f, buyerName: e.target.value }))}
+            placeholder="Ion Popescu" />
+        </div>
+        <div>
+          <label className={label}>Telefon</label>
+          <Input value={form.buyerPhone ?? ""}
+            onChange={(e) => setForm((f) => ({ ...f, buyerPhone: e.target.value }))}
+            placeholder="07xx xxx xxx" />
+        </div>
+      </div>
+    </Modal>
   );
 }
