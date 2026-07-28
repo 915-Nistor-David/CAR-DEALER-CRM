@@ -81,14 +81,14 @@ export default function Notifications() {
 
   return (
     <div className="mx-auto max-w-4xl">
-      <div className="mb-4 flex items-center justify-between">
-        <div>
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-ink">Notificări</h1>
           <p className="text-sm text-ink-secondary">
             Tot ce s-a întâmplat în stoc: mutări, bani, lucruri de rezolvat.
           </p>
         </div>
-        <Button variant="secondary" onClick={handleMarkAll}>
+        <Button variant="secondary" className="shrink-0" onClick={handleMarkAll}>
           {category ? `Marchează „${category}” citit` : "Marchează toate citite"}
         </Button>
       </div>

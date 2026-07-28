@@ -43,13 +43,13 @@ export default function Sales() {
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
-        <div>
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-ink">Vânzări</h1>
           <p className="text-sm text-ink-secondary">{sales.length} mașini vândute</p>
         </div>
         {sales.length > 0 && isOwner && (
-          <div className="rounded-lg border border-border bg-surface px-4 py-2 shadow-sm">
+          <div className="shrink-0 rounded-lg border border-border bg-surface px-4 py-2 shadow-sm">
             <span className="text-sm text-ink-secondary">Profit total: </span>
             <span className={`text-sm font-bold ${totalProfit >= 0 ? "text-good" : "text-critical"}`}>
               {formatMoney(totalProfit)}

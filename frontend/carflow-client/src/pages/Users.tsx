@@ -54,14 +54,14 @@ export default function Users() {
 
   return (
     <div className="mx-auto max-w-4xl">
-      <div className="mb-4 flex items-center justify-between">
-        <div>
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-ink">Utilizatori</h1>
           <p className="text-sm text-ink-secondary">
             Conturile echipei tale: administratori, vânzători și juniori (service/detailing).
           </p>
         </div>
-        <Button onClick={() => setShowForm(true)}>+ Cont nou</Button>
+        <Button className="shrink-0" onClick={() => setShowForm(true)}>+ Cont nou</Button>
       </div>
 
       {error && (

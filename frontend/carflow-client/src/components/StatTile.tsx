@@ -32,12 +32,13 @@ export default function StatTile({
   return (
     <Card>
       <div className="flex items-start justify-between gap-3">
-        <p className="text-sm text-ink-secondary">{label}</p>
+        <p className="min-w-0 text-sm text-ink-secondary">{label}</p>
         <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${tones[tone]}`}>
           {icon}
         </div>
       </div>
-      <p className="mt-2 text-3xl font-bold tracking-tight text-ink">{value}</p>
+      {/* Sumele mari („1.234.567 €") depasesc cardul la text-3xl pe telefon. */}
+      <p className="mt-2 break-words text-2xl font-bold tracking-tight text-ink sm:text-3xl">{value}</p>
       {delta && (
         <p className={`mt-1.5 text-xs font-medium ${deltaTones[deltaTone]}`}>{delta}</p>
       )}

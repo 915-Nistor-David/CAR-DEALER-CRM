@@ -66,7 +66,7 @@ export default function VehicleDetail() {
 
       {/* Header */}
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div>
+        <div className="min-w-0">
           <button onClick={() => navigate(-1)} className="mb-1 text-sm text-accent hover:underline">
             ← Înapoi
           </button>
@@ -91,23 +91,32 @@ export default function VehicleDetail() {
             </p>
           )}
         </div>
-        <div className="flex gap-2">
-          {!vehicle.isSold && canEdit && (
+        {/* Cele trei butoane cer ~395px, iar pe telefon randul are 343px.
+            Parintele se pliaza, deci grupul cadea pe rand propriu si abia
+            acolo depasea. Acum se pliaza si el, iar butoanele se impart
+            spatiul in loc sa iasa din ecran. */}
+        {/* Pentru Junior grupul e gol; randat oricum, ocupa un rand intreg si
+            lasa 16px de gol sub titlu. */}
+        {canEdit && (
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+          {!vehicle.isSold && (
+            // Eticheta lunga isi ia randul intreg pe telefon; impartita in trei
+            // se rupea pe trei linii si facea butoanele de 76px inaltime.
             <button onClick={() => setShowSaleForm(true)}
-              className="rounded-md bg-good px-4 py-2 text-sm font-semibold text-white hover:opacity-90">
+              className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-good px-4 py-2 text-sm font-semibold text-white hover:opacity-90 sm:min-h-0 sm:w-auto">
               💰 Marchează ca vândută
             </button>
           )}
-          {canEdit && (
-            <Button variant="secondary" onClick={() => setShowEdit(true)}>Editează</Button>
-          )}
+          <Button variant="secondary" className="flex-1 sm:flex-none"
+            onClick={() => setShowEdit(true)}>Editează</Button>
           {!vehicle.isSold && isOwner && (
             <button onClick={handleDelete}
-              className="rounded-md border border-critical/30 bg-surface px-4 py-2 text-sm text-critical hover:bg-critical/10">
+              className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full border border-critical/30 bg-surface px-4 py-2 text-sm text-critical hover:bg-critical/10 sm:min-h-0 sm:flex-none">
               Șterge
             </button>
           )}
         </div>
+        )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -297,16 +306,16 @@ function PhotosSection({ vehicle, onChanged }: { vehicle: VehicleDetailType; onC
 
   return (
     <Card>
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-base font-bold text-ink">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="min-w-0 text-base font-bold text-ink">
           Fotografii <span className="font-normal text-ink-muted">({vehicle.photos.length})</span>
         </h2>
-        <div className="flex items-center gap-2">
-          <Select value={category} onChange={(e) => setCategory(e.target.value)} className="w-auto"
+        <div className="flex flex-1 items-center gap-2 sm:flex-none">
+          <Select value={category} onChange={(e) => setCategory(e.target.value)} className="w-auto min-w-0"
             title="Categoria în care se încarcă poza">
             {PHOTO_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
           </Select>
-          <Button onClick={() => fileRef.current?.click()} disabled={uploading}>
+          <Button className="shrink-0" onClick={() => fileRef.current?.click()} disabled={uploading}>
             {uploading ? "Se încarcă..." : "+ Adaugă poză"}
           </Button>
           <input ref={fileRef} type="file" accept=".jpg,.jpeg,.png,.webp" className="hidden"
@@ -436,25 +445,28 @@ function CostsSection({ vehicle, onChanged }: { vehicle: VehicleDetailType; onCh
 
   return (
     <Card>
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-base font-bold text-ink">Costuri</h2>
-        <span className="text-sm font-semibold text-ink-secondary">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="min-w-0 text-base font-bold text-ink">Costuri</h2>
+        <span className="shrink-0 text-sm font-semibold text-ink-secondary">
           Total: {formatMoney(vehicle.totalCosts)}
         </span>
       </div>
 
       {error && <p className="mb-2 text-sm text-critical">{error}</p>}
 
+      {/* Latimile fixe (w-28 la suma, min-w-32 la descriere) nu lasau randul sa
+          se stranga sub ~400px. Pe telefon fiecare camp isi ia randul lui;
+          de la sm revin exact la dimensiunile de pana acum. */}
       <form onSubmit={handleAdd} className="mb-4 flex flex-wrap items-end gap-2">
-        <Select value={category} onChange={(e) => setCategory(e.target.value)} className="w-auto">
+        <Select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full sm:w-auto">
           {COST_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
         </Select>
         <Input type="number" required min="0.01" step="0.01" value={amount}
-          onChange={(e) => setAmount(e.target.value)} placeholder="Sumă (€)" className="w-28" />
-        <Input type="date" required value={date} onChange={(e) => setDate(e.target.value)} className="w-auto" />
+          onChange={(e) => setAmount(e.target.value)} placeholder="Sumă (€)" className="w-full sm:w-28" />
+        <Input type="date" required value={date} onChange={(e) => setDate(e.target.value)} className="w-full sm:w-auto" />
         <Input value={description} onChange={(e) => setDescription(e.target.value)}
-          placeholder="Descriere (opțional)" className="min-w-32 flex-1" />
-        <Button type="submit" disabled={saving}>Adaugă</Button>
+          placeholder="Descriere (opțional)" className="w-full min-w-0 flex-1 sm:min-w-32" />
+        <Button type="submit" disabled={saving} className="w-full sm:w-auto">Adaugă</Button>
       </form>
 
       {vehicle.costs.length === 0 ? (
@@ -566,12 +578,12 @@ function DocumentsSection({ vehicle, onChanged }: { vehicle: VehicleDetailType; 
 
       <form onSubmit={handleAdd} className="mb-4 flex flex-wrap items-end gap-2">
         <Input required value={name} onChange={(e) => setName(e.target.value)}
-          placeholder="Ex: Carte de identitate, contract, factură..." className="min-w-40 flex-1" />
-        <div>
+          placeholder="Ex: Carte de identitate, contract, factură..." className="w-full min-w-0 flex-1 sm:min-w-40" />
+        <div className="w-full sm:w-auto">
           <label className="mb-1 block text-xs text-ink-muted">Termen (opțional)</label>
-          <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-auto" />
+          <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="w-full sm:w-auto" />
         </div>
-        <Button type="submit" disabled={saving || !name.trim()}>Adaugă</Button>
+        <Button type="submit" disabled={saving || !name.trim()} className="w-full sm:w-auto">Adaugă</Button>
       </form>
 
       {vehicle.documents.length === 0 ? (

@@ -103,7 +103,10 @@ export default function Activity() {
                     {u.lastMoveAt ? formatDateTime(u.lastMoveAt) : "—"}
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex max-w-md flex-wrap gap-1">
+                    {/* max-w-md = 448px intr-un rand de 343px: singura celula
+                        care forta derularea acestui tabel. Plafonul are sens
+                        doar unde exista loc pentru el. */}
+                    <div className="flex flex-wrap gap-1 md:max-w-md">
                       {u.stageBreakdown.map((s) => (
                         <span key={s.stageId}
                           className="rounded-full bg-surface-alt px-2 py-0.5 text-[11px] text-ink-secondary">

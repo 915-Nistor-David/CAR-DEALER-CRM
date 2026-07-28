@@ -111,14 +111,14 @@ export default function Stages() {
 
   return (
     <div className="mx-auto max-w-4xl">
-      <div className="mb-4 flex items-center justify-between">
-        <div>
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-ink">Etapele pipeline-ului</h1>
           <p className="text-sm text-ink-secondary">
             Personalizează statusurile prin care trec mașinile: Mecanică, Vopsitorie, Climă, Detailing...
           </p>
         </div>
-        <Button onClick={startAdd}>+ Etapă nouă</Button>
+        <Button className="shrink-0" onClick={startAdd}>+ Etapă nouă</Button>
       </div>
 
       {error && (
@@ -141,12 +141,16 @@ export default function Stages() {
 
           {stages.map((s, i) => (
             <div key={s.stageId}
-              className="flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3 shadow-sm">
-              <div className="flex flex-col">
+              className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3 shadow-sm">
+              {/* Sagetile erau doua tinte de ~16px lipite una de alta — cu
+                  degetul nimereai aproape sigur cealalta. */}
+              <div className="flex shrink-0 flex-col">
                 <button onClick={() => handleMove(i, -1)} disabled={i === 0}
-                  className="text-ink-muted hover:text-ink disabled:opacity-20">▲</button>
+                  aria-label={`Mută „${s.name}” mai sus`}
+                  className="flex h-11 w-11 items-center justify-center text-ink-muted hover:text-ink disabled:opacity-20 sm:h-6 sm:w-9">▲</button>
                 <button onClick={() => handleMove(i, 1)} disabled={i === stages.length - 1}
-                  className="text-ink-muted hover:text-ink disabled:opacity-20">▼</button>
+                  aria-label={`Mută „${s.name}” mai jos`}
+                  className="flex h-11 w-11 items-center justify-center text-ink-muted hover:text-ink disabled:opacity-20 sm:h-6 sm:w-9">▼</button>
               </div>
               <div className="min-w-0 flex-1">
                 <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-ink">
@@ -160,12 +164,16 @@ export default function Stages() {
                   {" "}notifică: {NOTIFY_ROLE_OPTIONS.find((o) => o.value === (s.notifyRole ?? ""))?.label.toLowerCase()}
                 </p>
               </div>
-              <button onClick={() => startEdit(s)} className="text-xs font-medium text-accent hover:underline">
-                Editează
-              </button>
-              <button onClick={() => handleDelete(s)} className="text-xs text-ink-muted hover:text-critical">
-                ✕
-              </button>
+              <div className="flex shrink-0 items-center gap-1">
+                <button onClick={() => startEdit(s)}
+                  className="flex min-h-11 items-center rounded-lg px-2 text-xs font-medium text-accent hover:underline sm:min-h-0">
+                  Editează
+                </button>
+                <button onClick={() => handleDelete(s)} aria-label={`Șterge etapa „${s.name}”`}
+                  className="flex h-11 w-11 items-center justify-center rounded-lg text-xs text-ink-muted hover:text-critical sm:h-8 sm:w-8">
+                  ✕
+                </button>
+              </div>
             </div>
           ))}
         </div>

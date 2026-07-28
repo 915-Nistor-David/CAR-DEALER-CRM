@@ -86,14 +86,16 @@ export default function Agenda() {
       {error && <div className="mb-4 rounded-md bg-critical/15 px-4 py-3 text-sm text-critical">{error}</div>}
 
       <Card className="mb-4">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-bold capitalize text-ink">{monthLabel}</h2>
-          <div className="flex items-center gap-2">
-            <Button variant="secondary"
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          {/* „septembrie 2026" langa cele trei butoane nu incape pe un ecran
+              ingust — randul se pliaza in loc sa se stranga luna. */}
+          <h2 className="min-w-0 text-base font-bold capitalize text-ink">{monthLabel}</h2>
+          <div className="flex shrink-0 items-center gap-2">
+            <Button variant="secondary" aria-label="Luna precedentă" className="min-w-11"
               onClick={() => setCursor(new Date(year, month - 1, 1))}>‹</Button>
-            <Button variant="secondary"
+            <Button variant="secondary" aria-label="Luna curentă"
               onClick={() => setCursor(new Date())}>Azi</Button>
-            <Button variant="secondary"
+            <Button variant="secondary" aria-label="Luna următoare" className="min-w-11"
               onClick={() => setCursor(new Date(year, month + 1, 1))}>›</Button>
           </div>
         </div>
