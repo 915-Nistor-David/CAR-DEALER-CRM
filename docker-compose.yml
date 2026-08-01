@@ -1,0 +1,97 @@
+name: carflow
+
+services:
+  db:
+    # Fixat pe patch, nu pe "17" sau "latest": volumul pgdata e legat de versiunea
+    # majora, iar un bump neobservat la `docker compose pull` da
+    # "database files are incompatible with server" si o stiva care nu porneste.
+    image: postgres:17.6-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: carflow_db
+      POSTGRES_USER: carflow
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?lipseste din .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # Asta e reparatia pentru cursa de boot: API-ul ruleaza db.Database.Migrate()
+      # la pornire, fara retry, deci un Postgres care inca nu accepta conexiuni
+      # omoara containerul. Nu adaugam EnableRetryOnFailure in cod pentru ca
+      # AuthController.Register deschide o tranzactie explicita, iar EF arunca
+      # daca o tranzactie initiata de utilizator ruleaza sub strategie cu retry.
+      test: ["CMD-SHELL", "pg_isready -U carflow -d carflow_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+      start_period: 15s
+    networks: [internal]
+    # Deliberat fara `ports:`. Un "5432:5432 pentru debug" publica Postgres pe
+    # internet: Docker isi scrie propriile reguli iptables si ocoleste ufw.
+    # Pentru psql: docker compose exec db psql -U carflow -d carflow_db
+
+  api:
+    build:
+      context: .
+      dockerfile: backend/CarFlow.API/Dockerfile
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: "8080"
+      ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=carflow_db;Username=carflow;Password=${POSTGRES_PASSWORD:?}"
+      Jwt__Key: ${JWT_KEY:?lipseste din .env}
+      Jwt__Issuer: CarFlowAPI
+      Jwt__Audience: CarFlowClient
+      Jwt__ExpiryHours: "24"
+      # ATENTIE la incrucisare: aici merge originea APP-ului (asta trimite
+      # browserul in headerul Origin), nu a API-ului. Inversarea lor produce
+      # un login care esueaza cu eroare CORS.
+      Cors__Origins__0: ${PUBLIC_APP_ORIGIN:?lipseste din .env}
+      Logging__LogLevel__Default: Information
+    volumes:
+      # Pozele. Fara volum, dispar la fiecare redeploy.
+      # Directorul de pe host trebuie sa fie al UID-ului 1654 (userul din imagine),
+      # altfel Directory.CreateDirectory arunca si upload-ul da 500 cu corp gol.
+      - ./data/photos:/app/wwwroot/vehicles
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [internal, edge]
+    # Deliberat fara `ports:` — doar Caddy ajunge la 8080.
+
+  web:
+    build:
+      context: .
+      dockerfile: frontend/carflow-client/Dockerfile
+      args:
+        # Aici merge originea API-ului. Se coace in bundle la build, deci o
+        # schimbare cere `docker compose build web`, nu doar un restart.
+        VITE_API_URL: ${PUBLIC_API_ORIGIN:?lipseste din .env}
+    restart: unless-stopped
+    ports:
+      - "80:80" # necesar si pentru provocarea ACME, nu doar pentru redirect
+      - "443:443"
+      - "443:443/udp" # HTTP/3
+    environment:
+      APP_HOST: ${PUBLIC_APP_HOST:?lipseste din .env}
+      API_HOST: ${PUBLIC_API_HOST:?lipseste din .env}
+      ACME_EMAIL: ${ACME_EMAIL:?lipseste din .env}
+    volumes:
+      # Caddyfile bind-montat, dist copt in imagine: o regula de proxy schimbata
+      # devine `docker compose restart web` (~2s) in loc de rebuild (~3 min).
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data # certificatele Let's Encrypt traiesc aici.
+      - caddy_config:/config # NICIODATA `docker compose down -v` pe stiva asta.
+    depends_on: [api]
+    networks: [edge]
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:
+
+networks:
+  # db + api. `internal: true` = fara ruta spre exterior.
+  internal:
+    internal: true
+  # api + web. Caddy nu are drum spre Postgres.
+  edge:

@@ -1,0 +1,80 @@
+# Fisier comis. Hostname-urile vin din .env de pe server (vezi deploy/.env.example),
+# ca sa nu ajunga niciun IP real intr-un fisier urmarit de git.
+
+{
+	email {$ACME_EMAIL}
+}
+
+# ---------------------------------------------------------------------------
+# Frontend (SPA), pe radacina domeniului.
+# NU se poate servi dintr-un subdirector: index.html referentiaza /favicon.svg
+# absolut, iar api.ts si ErrorBoundary fac window.location.href = "/login".
+# ---------------------------------------------------------------------------
+{$APP_HOST} {
+	encode zstd gzip
+	root * /srv
+
+	# Asset-urile cu hash: servite sau 404, NICIODATA index.html.
+	# Fara blocul asta, un asset lipsa (index.html vechi in cache-ul telefonului,
+	# cerand hash-uri care nu mai exista) ar primi index.html cu content-type
+	# text/html, iar browserul ar arata "Failed to load module script: MIME type" —
+	# cel mai derutant mod de esec la un deploy de SPA.
+	handle /assets/* {
+		header Cache-Control "public, max-age=31536000, immutable"
+		file_server
+	}
+
+	# Restul: fallback SPA pentru rutele BrowserRouter (/vehicles/8, /agenda, ...).
+	# Fara el, un refresh sau un link trimis pe WhatsApp da 404 de la Caddy.
+	handle {
+		# no-store pe index.html: vei reconstrui frontendul dupa feedback, iar un
+		# index.html cache-uit cere hash-uri de asset care nu mai exista.
+		header Cache-Control "no-store"
+		try_files {path} /index.html
+		file_server
+	}
+
+	header {
+		# max-age scurt, deliberat: hostname-ul sslip.io e temporar, pana la un
+		# domeniu real. Nu vrem sa-l pinuim in browsere pentru un an.
+		Strict-Transport-Security "max-age=86400"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}
+
+# ---------------------------------------------------------------------------
+# API + pozele. Subdomeniu SEPARAT, si nu din preferinta:
+# pozele sunt servite de API la /vehicles/{id}/{guid}.jpg (middleware-ul de
+# semnatura din Program.cs prinde segmentul /vehicles), iar SPA-ul are ruta
+# /vehicles/:id. Pe o singura origine cele doua sunt ambigue si orice regula
+# scrisa aici ar rupe una dintre ele.
+# ---------------------------------------------------------------------------
+{$API_HOST} {
+	encode zstd gzip
+
+	# PhotosController accepta maxim 10 MB, dar abia dupa ce a buferat fisierul.
+	# Taiem la margine, ca o poza de 40 MB de pe telefon sa nu fie urcata integral
+	# doar ca sa fie respinsa.
+	request_body {
+		max_size 12MB
+	}
+
+	# DUPA prima inregistrare a Owner-ului, DECOMENTEAZA blocul de mai jos.
+	# POST /api/auth/register e anonim si creeaza un dealership nou pentru oricine
+	# gaseste URL-ul. Izolarea pe DealershipId tine (nu vad datele dealerului), dar
+	# aduni tenanti-fantoma intr-o baza cu date reale de clienti.
+	# De aici incolo, conturile de vanzatori le face Owner-ul din UI, la /utilizatori.
+	# @register path /api/auth/register
+	# respond @register "Inregistrare inchisa." 403
+
+	reverse_proxy api:8080
+
+	# Fara headere CORS aici: API-ul le emite singur prin UseCors. Duplicate,
+	# browserele resping raspunsul complet.
+	header {
+		X-Content-Type-Options "nosniff"
+		-Server
+	}
+}

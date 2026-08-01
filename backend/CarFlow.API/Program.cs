@@ -10,7 +10,7 @@ using Microsoft.IdentityModel.Tokens;
 var builder = WebApplication.CreateBuilder(args);
 
 // Refuzam sa pornim cu secretele placeholder din appsettings.json.
-StartupConfigGuard.Validate(builder.Configuration);
+StartupConfigGuard.Validate(builder.Configuration, builder.Environment);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -93,10 +93,16 @@ builder.Services.AddCors(o => o.AddPolicy("Frontend", p =>
 var app = builder.Build();
 
 // Aplica automat migrarile EF la pornire — baza de date e mereu sincronizata cu codul.
+// Logam in jurul lor: pasul asta ruleaza inaintea oricarui middleware, deci o
+// migrare esuata intr-un container produce altfel doar un crash-loop cu un stack
+// trace EF, fara niciun indiciu ca despre migrari era vorba.
 using (var scope = app.Services.CreateScope())
 {
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    logger.LogInformation("Aplic migrarile EF...");
     db.Database.Migrate();
+    logger.LogInformation("Migrari aplicate.");
 }
 
 if (app.Environment.IsDevelopment())
@@ -132,5 +138,12 @@ app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+// Sonda de liveness pentru platforma de hosting. Deliberat NU atinge baza de
+// date: un health care interogheaza Postgres transforma o pana de baza intr-o
+// bucla de restart. Toate controllerele in afara de Auth au [Authorize], iar
+// /api/auth/login are efecte secundare, deci nu exista alt endpoint anonim care
+// sa raspunda 200. Calea /healthz nu se ciocneste cu middleware-ul de pe /vehicles.
+app.MapGet("/healthz", () => Results.Ok(new { status = "ok" })).AllowAnonymous();
 
 app.Run();

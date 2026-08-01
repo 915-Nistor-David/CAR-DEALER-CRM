@@ -23,3 +23,10 @@ site*.png
 
 # Note de sesiune Claude — nu se comit
 CLAUDE.md
+
+# Deploy: secretele si datele de pe server. Slash-ul din fata e obligatoriu —
+# fara el, `.env` ar prinde si caile din frontend/, care are propriile reguli
+# (inclusiv negatia !.env.example).
+/.env
+/data/
+/backups/

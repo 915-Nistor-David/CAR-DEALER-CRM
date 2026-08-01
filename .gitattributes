@@ -1,0 +1,11 @@
+# Fisierele care ruleaza pe Linux trebuie sa aiba terminatii LF indiferent de
+# setarea core.autocrlf a masinii pe care se lucreaza. Un script shell cu CRLF
+# esueaza pe server cu "bad interpreter: /usr/bin/env bash^M", eroare care nu
+# spune nimic despre cauza reala.
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.Dockerfile text eol=lf
+Caddyfile text eol=lf
+docker-compose.yml text eol=lf
+.dockerignore text eol=lf
+.env.example text eol=lf

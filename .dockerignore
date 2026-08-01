@@ -1,0 +1,37 @@
+# Contextul de build e radacina repo-ului, deci fisierul asta e portant:
+# tot ce nu e exclus aici ajunge intr-un layer de imagine, pe un server.
+
+.git
+.gitignore
+README.md
+site*.png
+
+# Note de sesiune Claude — gitignored, deci nu ajung in repo, dar ar ajunge
+# in imagine daca nu sunt excluse aici.
+CLAUDE.md
+.claude/
+
+# .NET — artefacte locale de build; imaginea isi face propriul restore/publish
+**/bin
+**/obj
+**/*.user
+.vs/
+
+# Pozele de dezvoltare. Sunt oricum umbrite de bind mount la rulare, dar fara
+# linia asta ar sta degeaba intr-un layer.
+backend/CarFlow.API/wwwroot/vehicles
+
+# Frontend
+frontend/carflow-client/node_modules
+frontend/carflow-client/dist
+
+# .env.lan contine un IP real de LAN. Fara excluderea asta, IP-ul ajunge in
+# imagine — exact locul in care nimeni nu se uita dupa el.
+frontend/carflow-client/.env
+frontend/carflow-client/.env.*
+!frontend/carflow-client/.env.example
+
+# Secretele si pozele de pe server (exista doar acolo)
+.env
+data/
+backups/
