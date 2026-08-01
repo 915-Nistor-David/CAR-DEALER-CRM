@@ -1,0 +1,23 @@
+# Suprascriere pentru demo prin Cloudflare Tunnel:
+#   docker compose -f docker-compose.yml -f docker-compose.tunnel.yml up -d
+#
+# Cloudflare termina TLS-ul, deci Caddy serveste HTTP simplu si nu mai are nevoie
+# de portul 443 sau de certificate. Restul stivei ramane neschimbat — aceleasi
+# imagini, aceeasi baza de date, acelasi volum de poze, aceeasi rutare.
+
+services:
+  web:
+    volumes:
+      - ./deploy/Caddyfile.tunnel:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    ports:
+      # Doar 80: cloudflared se conecteaza aici, din WSL. Fara 443 si fara UDP —
+      # nu exista TLS de terminat local.
+      - "127.0.0.1:80:80"
+    environment:
+      APP_HOST: ${PUBLIC_APP_HOST:?lipseste din .env}
+      API_HOST: ${PUBLIC_API_HOST:?lipseste din .env}
+      # ACME_EMAIL nu se foloseste in modul tunel, dar variabila ramane ceruta de
+      # fisierul de baza; o lasam sa se propage.
+      ACME_EMAIL: ${ACME_EMAIL:-nefolosit@example.com}

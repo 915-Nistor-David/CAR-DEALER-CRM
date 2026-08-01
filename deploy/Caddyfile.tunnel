@@ -1,0 +1,47 @@
+# Varianta pentru Cloudflare Tunnel (demo temporar, fara server propriu).
+#
+# Diferenta fata de deploy/Caddyfile: adresele au prefixul `http://`, deci Caddy
+# NU incearca sa obtina certificate. HTTPS-ul il face Cloudflare, la marginea
+# retelei; pana la Caddy traficul vine prin tunel, nu prin internet deschis.
+# Restul rutarii e identic, ca sa testam aceeasi logica pe care o va rula si VPS-ul.
+
+http://{$APP_HOST} {
+	encode zstd gzip
+	root * /srv
+
+	handle /assets/* {
+		header Cache-Control "public, max-age=31536000, immutable"
+		file_server
+	}
+
+	handle {
+		header Cache-Control "no-store"
+		try_files {path} /index.html
+		file_server
+	}
+
+	header {
+		X-Content-Type-Options "nosniff"
+		-Server
+	}
+}
+
+http://{$API_HOST} {
+	encode zstd gzip
+
+	request_body {
+		max_size 12MB
+	}
+
+	# DUPA ce ti-ai creat contul de Owner, decomenteaza. Adresa tunelului e
+	# publica: oricine o afla isi poate crea propriul dealership.
+	# @register path /api/auth/register
+	# respond @register "Inregistrare inchisa." 403
+
+	reverse_proxy api:8080
+
+	header {
+		X-Content-Type-Options "nosniff"
+		-Server
+	}
+}
