@@ -41,7 +41,16 @@ echo
 echo "=== TLS si rutare ==="
 chk "$(code "https://$API/healthz")" "200" "healthz (certificat valid, fara -k)"
 chk "$(code "https://$API/api/vehicles")" "401" "/api/vehicles neautentificat"
-chk "$(code "http://$APP/")" "308" "http -> https (portul 80 e si canalul ACME)"
+# Redirectul il face Caddy, dar numai cand el termina TLS-ul. Prin Cloudflare
+# Tunnel, marginea Cloudflare serveste si HTTP si HTTPS, iar "Always Use HTTPS"
+# e o setare de cont indisponibila pentru tunelurile rapide — Caddy nu vede
+# niciodata cererea ca fiind HTTP. Verificarea are sens doar pe server.
+case "$APP" in
+  *.trycloudflare.com)
+    echo "  SKIP  http -> https (irelevant prin Cloudflare Tunnel; se verifica pe VPS)" ;;
+  *)
+    chk "$(code "http://$APP/")" "308" "http -> https (portul 80 e si canalul ACME)" ;;
+esac
 
 echo
 echo "=== SPA ==="
