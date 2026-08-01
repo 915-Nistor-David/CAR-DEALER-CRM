@@ -24,11 +24,11 @@ echo "==> Opresc tunelurile vechi"
 cleanup_tunnels
 sleep 2
 
-# Ambele tuneluri arata spre acelasi Caddy (portul 80). Caddy separa cele doua
-# site-uri dupa numele de gazda, exact ca pe server.
+# Ambele tuneluri arata spre acelasi Caddy (127.0.0.1:18080). Caddy separa cele
+# doua site-uri dupa numele de gazda din cerere, exact ca pe server.
 echo "==> Pornesc doua tuneluri"
-nohup "$CF" tunnel --url http://localhost:80 --no-autoupdate > "$LOGS/app.log" 2>&1 &
-nohup "$CF" tunnel --url http://localhost:80 --no-autoupdate > "$LOGS/api.log" 2>&1 &
+nohup "$CF" tunnel --url http://localhost:18080 --no-autoupdate > "$LOGS/app.log" 2>&1 &
+nohup "$CF" tunnel --url http://localhost:18080 --no-autoupdate > "$LOGS/api.log" 2>&1 &
 
 grab_url() {
   for _ in $(seq 1 40); do

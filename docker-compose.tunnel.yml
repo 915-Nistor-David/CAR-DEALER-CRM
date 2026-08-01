@@ -11,10 +11,14 @@ services:
       - ./deploy/Caddyfile.tunnel:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
-    ports:
-      # Doar 80: cloudflared se conecteaza aici, din WSL. Fara 443 si fara UDP —
-      # nu exista TLS de terminat local.
-      - "127.0.0.1:80:80"
+    # `!override` e OBLIGATORIU: Compose combina listele prin ADAUGARE, nu prin
+    # inlocuire. Fara el, serviciul mosteneste si "80:80" din fisierul de baza,
+    # cere acelasi port de doua ori si esueaza cu "address already in use" —
+    # aratand ca si cand altcineva l-ar fi ocupat.
+    ports: !override
+      # Port inalt si doar pe loopback: singurul client e cloudflared, care
+      # ruleaza pe aceeasi masina. Nimic nu e expus in retea.
+      - "127.0.0.1:18080:80"
     environment:
       APP_HOST: ${PUBLIC_APP_HOST:?lipseste din .env}
       API_HOST: ${PUBLIC_API_HOST:?lipseste din .env}
