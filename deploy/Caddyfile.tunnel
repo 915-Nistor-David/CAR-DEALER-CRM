@@ -33,10 +33,14 @@ http://{$API_HOST} {
 		max_size 12MB
 	}
 
-	# DUPA ce ti-ai creat contul de Owner, decomenteaza. Adresa tunelului e
-	# publica: oricine o afla isi poate crea propriul dealership.
-	# @register path /api/auth/register
-	# respond @register "Inregistrare inchisa." 403
+	# Inregistrare INCHISA (activata pe 2026-08-01, dupa crearea contului Owner).
+	# Adresa tunelului e publica: fara blocul asta, oricine o afla isi poate crea
+	# propriul dealership in aceeasi baza de date.
+	# Conturile de vanzatori se fac din aplicatie, la /utilizatori.
+	# Ca sa redeschizi temporar: comenteaza cele doua linii si
+	#   docker compose -f docker-compose.yml -f docker-compose.tunnel.yml restart web
+	@register path /api/auth/register
+	respond @register "Inregistrare inchisa." 403
 
 	reverse_proxy api:8080
 
